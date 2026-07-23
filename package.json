@@ -19,7 +19,6 @@
     "@capacitor/keyboard": "^5.0.6",
     "@capacitor/status-bar": "^5.0.6",
     "@capacitor/http": "^5.0.6",
-    "@capacitor/bluetooth": "^5.0.6",
     "@capacitor/android": "^5.0.6",
     "@capacitor/splash-screen": "^5.0.6",
     "ink": "^4.4.1",
