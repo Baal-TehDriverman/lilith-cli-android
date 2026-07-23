@@ -25,9 +25,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: lilith-cli-android/package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -44,6 +43,7 @@ jobs:
       - name: Sync Capacitor
         working-directory: lilith-cli-android
         run: |
+          npx cap add android
           npx cap sync android
 
       - name: Build APK
@@ -72,9 +72,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: lilith-cli-android/package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -91,6 +90,7 @@ jobs:
       - name: Sync Capacitor
         working-directory: lilith-cli-android
         run: |
+          npx cap add android
           npx cap sync android
 
       - name: Setup Keystore

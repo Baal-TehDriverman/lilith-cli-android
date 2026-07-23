@@ -20,6 +20,8 @@
     "@capacitor/status-bar": "^5.0.6",
     "@capacitor/http": "^5.0.6",
     "@capacitor/bluetooth": "^5.0.6",
+    "@capacitor/android": "^5.0.6",
+    "@capacitor/splash-screen": "^5.0.6",
     "ink": "^4.4.1",
     "ink-select-input": "^5.0.0",
     "ink-text-input": "^5.0.0",
@@ -33,7 +35,6 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^5.0.6",
-    "@capacitor/android": "^5.0.6",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.43",
     "typescript": "^5.3.0",
