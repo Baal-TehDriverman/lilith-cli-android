@@ -34,19 +34,17 @@ jobs:
           java-version: '17'
 
       - name: Install Dependencies
-        working-directory: lilith-cli-android
         run: |
           npm ci
           npm run build
 
       - name: Sync Capacitor
-        working-directory: lilith-cli-android
         run: |
           npx cap add android
           npx cap sync android
 
       - name: Build APK
-        working-directory: lilith-cli-android/android
+        working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -55,7 +53,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lilith-cli-apk
-          path: lilith-cli-android/android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
   build-aab:
@@ -80,13 +78,11 @@ jobs:
           java-version: '17'
 
       - name: Install Dependencies
-        working-directory: lilith-cli-android
         run: |
           npm ci
           npm run build
 
       - name: Sync Capacitor
-        working-directory: lilith-cli-android
         run: |
           npx cap add android
           npx cap sync android
@@ -98,11 +94,11 @@ jobs:
           ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
 
       - name: Build AAB
-        working-directory: lilith-cli-android/android
+        working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=../../keystore.jks \
+            -Pandroid.injected.signing.store.file=../keystore.jks \
             -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
@@ -111,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lilith-cli-aab
-          path: lilith-cli-android/android/app/build/outputs/bundle/release/*.aab
+          path: android/app/build/outputs/bundle/release/*.aab
           retention-days: 30
 
   recursive-improvement:
@@ -134,11 +130,11 @@ jobs:
           echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
           
           # Check for TODO/FIXME comments
-          TODO_COUNT=$(grep -r "TODO\|FIXME" --include="*.ts" --include="*.tsx" lilith-cli-android/src | wc -l || echo "0")
+          TODO_COUNT=$(grep -r "TODO\|FIXME" --include="*.ts" --include="*.tsx" src | wc -l || echo "0")
           echo "todo_count=$TODO_COUNT" >> $GITHUB_OUTPUT
           
           # Check code complexity (simple line count metric)
-          TOTAL_LINES=$(find lilith-cli-android/src -name "*.ts" -o -name "*.tsx" | xargs wc -l | tail -1 | awk '{print $1}')
+          TOTAL_LINES=$(find src -name "*.ts" -o -name "*.tsx" | xargs wc -l | tail -1 | awk '{print $1}')
           echo "total_lines=$TOTAL_LINES" >> $GITHUB_OUTPUT
 
       - name: Generate Improvement Suggestions
