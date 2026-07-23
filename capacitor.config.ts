@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'io.github.baal-tehdriverman.lilith-cli',
+  appId: 'io.github.baaltehdriverman.lilithcli',
   appName: 'Lilith CLI',
   webDir: 'www',
   server: {
