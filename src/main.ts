@@ -24,8 +24,7 @@ const __dirname = dirname(__filename);
 import { startKairos } from './kairos/orchestrator.js';
 import { runDreamCycle } from './dream/autoDream.js';
 import { showBuddy } from './buddy/companion.js';
-import { checkGatewayStatus } from './tools/gateway.js';
-import { listModels } from './tools/gateway.js';
+import { checkGatewayStatus, listModels, queryGateway } from './tools/gateway.js';
 
 const program = new Command();
 
@@ -79,9 +78,20 @@ program
 program
   .command('undercover <query>')
   .description('Run query in undercover mode (limited disclosure)')
-  .action((query) => {
+  .action(async (query, options) => {
     console.log(chalk.gray('[UNDERCOVER MODE] Query will be sanitized...'));
-    // TODO: Implement undercover mode
+    try {
+      const sanitizedQuery = `[SENSITIVE-FILTER] ${query}`;
+      const response = await queryGateway(
+        process.env.VM_AI_GATEWAY_URL || 'http://tehlappy.local:8080', 
+        sanitizedQuery, 
+        'llama3.1:8b', 
+        'Undercover-Lilith'
+      );
+      console.log(chalk.white(`\n${response}\n`));
+    } catch (error) {
+      console.log(chalk.red(`\n✗ Gateway Error: ${error.message}`));
+    }
   });
 
 program
@@ -147,7 +157,12 @@ Commands:
         } else {
           // Send to gateway
           console.log(chalk.yellow('Thinking...'));
-          // TODO: Implement gateway call
+          try {
+            const response = await queryGateway(options.pcUrl, line, options.model, options.persona);
+            console.log(chalk.white(`\n${response}\n`));
+          } catch (error) {
+            console.log(chalk.red(`\\n✗ Gateway Error: ${error.message}`));
+          }
         }
         
         rl.prompt();
@@ -157,7 +172,12 @@ Commands:
     } else {
       // Direct query
       console.log(chalk.yellow('Thinking...'));
-      // TODO: Implement gateway call
+      try {
+        const response = await queryGateway(options.pcUrl, query, options.model, options.persona);
+        console.log(chalk.white(`\\n${response}\\n`));
+      } catch (error) {
+        console.log(chalk.red(`\\n✗ Gateway Error: ${error.message}`));
+      }
     }
   });
 
