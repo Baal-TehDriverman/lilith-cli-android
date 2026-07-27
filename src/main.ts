@@ -14,11 +14,12 @@
 import { Command } from 'commander';
 import { createInterface } from 'readline';
 import chalk from 'chalk';
-import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// In CJS build, __filename and __dirname are available natively
+// In ESM, they'd need import.meta.url — but we build to CJS for Android
+const __filename = typeof __filename !== 'undefined' ? __filename : '';
+const __dirname = typeof __dirname !== 'undefined' ? __dirname : '.';
 
 // Import local modules
 import { startKairos } from './kairos/orchestrator.js';
