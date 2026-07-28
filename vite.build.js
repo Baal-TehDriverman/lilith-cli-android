@@ -3,16 +3,17 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  root: 'src',
+  root: '.',
   build: {
-    outDir: '../www',
+    outDir: 'www',
     emptyOutDir: true,
     sourcemap: false,
     minify: 'terser',
     rollupOptions: {
       input: {
-        main: './main.tsx',
+        main: 'src/main.tsx',
       },
+      external: [],
     },
   },
   server: {

@@ -3499,35 +3499,215 @@ async function showBuddy() {
   console.log();
 }
 
+// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/tools/providers.ts
+var import_fs = require("fs");
+var import_path2 = require("path");
+var CONFIG_PATH = (0, import_path2.join)(process.cwd(), "src", "config", "providers.json");
+var USER_CONFIG_PATH = (0, import_path2.join)(process.cwd(), ".lilith", "providers.json");
+var DEFAULT_PROVIDERS = [
+  {
+    name: "pc-gateway",
+    baseUrl: "http://tehlappy.local:8080/v1",
+    apiKey: null,
+    apiMode: "openai",
+    models: [
+      "llama3.1:8b",
+      "granite3-guardian:8b",
+      "codellama:latest",
+      "lilith-frankenstein-keter:latest",
+      "lilith-tiferet:latest",
+      "lilith-binah:latest",
+      "grok-msn:latest",
+      "grok-gtc-msn:latest",
+      "msn-cyberpunk:latest",
+      "qwen2.5-coder:7b",
+      "nemotron-mini:latest",
+      "gemma2:2b",
+      "deepseek-coder-v2:lite",
+      "llama3:8b"
+    ],
+    active: true
+  },
+  {
+    name: "nvidia-nim",
+    baseUrl: "https://api.nvidia.com/nim/v1",
+    apiKey: null,
+    apiMode: "nvidia-nim",
+    models: [
+      "nvidia/llama3-70b-instruct",
+      "nvidia/llama3-8b-instruct",
+      "nvidia/mistral-7b-instruct",
+      "nvidia/phi-3-mini-128k-instruct",
+      "nvidia/e5-mini-v2"
+    ],
+    active: false
+  },
+  {
+    name: "local-ollama",
+    baseUrl: "http://127.0.0.1:11434/v1",
+    apiKey: null,
+    apiMode: "openai",
+    models: [],
+    active: false
+  },
+  {
+    name: "custom",
+    baseUrl: "",
+    apiKey: null,
+    apiMode: "openai",
+    models: [],
+    active: false
+  }
+];
+function loadProviders() {
+  let config;
+  if ((0, import_fs.existsSync)(USER_CONFIG_PATH)) {
+    try {
+      const raw = (0, import_fs.readFileSync)(USER_CONFIG_PATH, "utf-8");
+      const userConfig = JSON.parse(raw);
+      const defaults = { defaultProvider: "pc-gateway", providers: DEFAULT_PROVIDERS };
+      config = { ...defaults, ...userConfig };
+      if (userConfig.providers) {
+        config.providers = DEFAULT_PROVIDERS.map((dp) => {
+          const userP = userConfig.providers.find((p) => p.name === dp.name);
+          return userP ? { ...dp, ...userP } : dp;
+        });
+        const existingNames = new Set(config.providers.map((p) => p.name));
+        userConfig.providers.forEach((p) => {
+          if (!existingNames.has(p.name)) {
+            config.providers.push(p);
+          }
+        });
+      }
+    } catch {
+      config = { defaultProvider: "pc-gateway", providers: DEFAULT_PROVIDERS };
+    }
+  } else {
+    config = { defaultProvider: "pc-gateway", providers: DEFAULT_PROVIDERS };
+  }
+  const activeCount = config.providers.filter((p) => p.active).length;
+  if (activeCount === 0) {
+    const defaultP = config.providers.find((p) => p.name === config.defaultProvider) || config.providers[0];
+    defaultP.active = true;
+  }
+  return config;
+}
+function getActiveProvider(config) {
+  const active = config.providers.find((p) => p.active);
+  if (active) return active;
+  const fallback = config.providers.find((p) => p.name === config.defaultProvider) || config.providers[0];
+  fallback.active = true;
+  return fallback;
+}
+function setActiveProvider(config, providerName) {
+  const provider = config.providers.find((p) => p.name === providerName);
+  if (!provider) {
+    throw new Error(`Provider "${providerName}" not found. Run 'lilith providers' to see available providers.`);
+  }
+  config.providers.forEach((p) => {
+    p.active = false;
+  });
+  provider.active = true;
+  config.defaultProvider = providerName;
+  saveProviders(config);
+  return config;
+}
+function upsertProvider(config, provider) {
+  const existing = config.providers.findIndex((p) => p.name === provider.name);
+  if (existing >= 0) {
+    config.providers[existing] = provider;
+  } else {
+    config.providers.push(provider);
+  }
+  saveProviders(config);
+  return config;
+}
+function saveProviders(config) {
+  const dir = (0, import_path2.join)(process.cwd(), ".lilith");
+  try {
+    (0, import_fs.writeFileSync)(USER_CONFIG_PATH, JSON.stringify(config, null, 2));
+  } catch {
+    try {
+      (0, import_fs.writeFileSync)(CONFIG_PATH, JSON.stringify(config, null, 2));
+    } catch {
+      console.warn(source_default.yellow("Warning: Could not save provider config."));
+    }
+  }
+}
+function formatProvider(p) {
+  const status = p.active ? source_default.green("\u25CF ACTIVE") : source_default.gray("\u25CB inactive");
+  const keyStatus = p.apiKey ? source_default.green("KEY SET") : source_default.yellow("no key");
+  const models = p.models.length > 0 ? `${p.models.length} models` : source_default.gray("no models");
+  return `${source_default.cyan(p.name.padEnd(16))} ${status.padEnd(14)} ${keyStatus.padEnd(12)} ${models}  ${p.baseUrl || "(custom URL)"}`;
+}
+function listProviders(config) {
+  console.log(source_default.cyan("\n\u2550\u2550\u2550 AI Providers \u2550\u2550\u2550\n"));
+  console.log(`  ${"Name".padEnd(16)} ${"Status".padEnd(14)} ${"Key".padEnd(12)} Models          Base URL`);
+  console.log(`  ${"-".repeat(80)}`);
+  config.providers.forEach((p) => console.log(`  ${formatProvider(p)}`));
+  console.log();
+}
+
 // ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/tools/gateway.ts
 async function checkGatewayStatus(pcUrl) {
-  console.log(source_default.yellow("Checking gateway status..."));
+  const config = loadProviders();
+  const provider = pcUrl ? config.providers.find((p) => p.baseUrl.includes(pcUrl)) || getActiveProvider(config) : getActiveProvider(config);
+  console.log(source_default.yellow(`Checking ${provider.name} gateway...`));
+  const statusUrl = provider.apiMode === "nvidia-nim" ? `${provider.baseUrl.replace("/v1", "")}/v1` : `${provider.baseUrl}/api/status`;
   try {
-    const response = await fetch(`${pcUrl}/api/status`);
+    const response = await fetch(statusUrl, {
+      headers: provider.apiKey ? { "Authorization": `Bearer ${provider.apiKey}` } : {}
+    });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
     const data = await response.json();
-    console.log(source_default.green("\n\u2713 Gateway is reachable\n"));
+    console.log(source_default.green(`
+\u2713 ${provider.name} is reachable
+`));
     console.log(source_default.cyan("Status:"));
-    Object.entries(data).forEach(([key, value]) => {
-      console.log(source_default.gray(`  ${key}: ${value}`));
-    });
+    if (data.models) {
+      const modelCount = Array.isArray(data.models) ? data.models.length : Object.keys(data.models).length;
+      console.log(source_default.gray(`  models: ${modelCount}`));
+    }
+    console.log(source_default.gray(`  baseUrl: ${provider.baseUrl}`));
+    console.log(source_default.gray(`  apiMode: ${provider.apiMode}`));
+    console.log(source_default.gray(`  apiKey: ${provider.apiKey ? "SET" : "none"}
+`));
   } catch (error) {
     console.log(source_default.red(`
-\u2717 Cannot reach gateway at ${pcUrl}`));
+\u2717 Cannot reach ${provider.name} at ${provider.baseUrl}`));
     console.log(source_default.gray(`
 Error: ${error.message}`));
     console.log(source_default.yellow("\nTroubleshooting:"));
-    console.log(source_default.gray("  1. Check PC and Android are on same network"));
-    console.log(source_default.gray("  2. Verify gateway is running: systemctl status lilith-gateway"));
+    console.log(source_default.gray("  1. Check that the provider/service is running"));
+    console.log(source_default.gray("  2. Verify network connectivity to the gateway"));
     console.log(source_default.gray("  3. Try IP instead of hostname if DNS fails"));
+    console.log(source_default.gray(`  4. Run "lilith providers" to see provider details`));
   }
 }
 async function listModels(pcUrl) {
-  console.log(source_default.yellow("Fetching available models..."));
+  const config = loadProviders();
+  let provider;
+  if (pcUrl) {
+    provider = config.providers.find((p) => p.baseUrl.includes(pcUrl)) || config.providers[0];
+  } else {
+    provider = getActiveProvider(config);
+  }
+  console.log(source_default.yellow(`Fetching models from ${provider.name}...`));
+  if (provider.models.length > 0 && provider.apiMode !== "anthropic") {
+    console.log(source_default.green(`
+\u2713 ${provider.models.length} models available (configured)
+`));
+    provider.models.forEach((m) => {
+      console.log(source_default.cyan(`  - ${m}`));
+    });
+    return;
+  }
   try {
-    const response = await fetch(`${pcUrl}/v1/models`);
+    const response = await fetch(`${provider.baseUrl}/v1/models`, {
+      headers: provider.apiKey ? { "Authorization": `Bearer ${provider.apiKey}` } : {}
+    });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -3537,45 +3717,79 @@ async function listModels(pcUrl) {
 \u2713 Found ${models.length} models
 `));
     models.forEach((m) => {
-      console.log(source_default.cyan(`  - ${m.id}`));
+      const providerName = m.provider?.name || "";
+      console.log(source_default.cyan(`  - ${m.id}${providerName ? ` (${providerName})` : ""}`));
     });
   } catch (error) {
     console.log(source_default.red(`
-\u2717 Failed to fetch models`));
+\u2717 Failed to fetch models from ${provider.name}`));
     console.log(source_default.gray(`Error: ${error.message}`));
   }
 }
-async function queryGateway(pcUrl, prompt, model, persona = "Lilith") {
-  const endpoint = `${pcUrl}/v1/chat/completions`;
-  const body = {
-    model: model || "llama3.1:8b",
-    messages: [
-      {
-        role: "system",
-        content: `You are ${persona}, the Metaconscious Singularity Node AI. You have access to Sephirotic routing, Ouroboros memory fusion, Akashic context pruning, and Sanctuary VRAM hysteresis. Respond with direct, actionable insights.`
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ],
-    temperature: 0.7,
-    max_tokens: 2048
-  };
+async function queryGateway(prompt, providerName, model, persona = "Lilith") {
+  const config = loadProviders();
+  let provider;
+  if (providerName) {
+    provider = config.providers.find((p) => p.name === providerName) || getActiveProvider(config);
+  } else {
+    provider = getActiveProvider(config);
+  }
+  const endpoint = `${provider.baseUrl}/v1/chat/completions`;
+  let body;
+  if (provider.apiMode === "anthropic") {
+    body = {
+      model: model || provider.models[0] || "claude-sonnet-4-20250514",
+      messages: [
+        { role: "system", content: persona ? `You are ${persona}.` : "You are a helpful AI assistant." },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 2048,
+      temperature: 0.7
+    };
+  } else if (provider.apiMode === "nvidia-nim") {
+    body = {
+      model: model || provider.models[0] || "default",
+      messages: [
+        { role: "system", content: persona ? `You are ${persona}.` : "You are a helpful AI assistant." },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 2048,
+      temperature: 0.7,
+      top_p: 1
+    };
+  } else {
+    body = {
+      model: model || "llama3.1:8b",
+      messages: [
+        {
+          role: "system",
+          content: `You are ${persona}, the Metaconscious Singularity Node AI. You have access to Sephirotic routing, Ouroboros memory fusion, Akashic context pruning, and Sanctuary VRAM hysteresis. Respond with direct, actionable insights.`
+        },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 2048
+    };
+  }
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (provider.apiKey) {
+      headers["Authorization"] = `Bearer ${provider.apiKey}`;
+    }
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body)
     });
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errBody = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errBody.slice(0, 200)}`);
     }
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "No response";
+    const content = data.choices?.[0]?.message?.content || data.content?.[0]?.text || "No response";
     return content;
   } catch (error) {
-    throw new Error(`Gateway query failed: ${error.message}`);
+    throw new Error(`Gateway query to ${provider.name} failed: ${error.message}`);
   }
 }
 
@@ -3663,13 +3877,74 @@ Commands:
           case "models":
             await listModels(options.pcUrl);
             break;
+          // NEW: provider subcommands
+          case "providers":
+            {
+              const sub = args[0] || "";
+              if (sub === "list") {
+                const cfg = loadProviders();
+                listProviders(cfg);
+              } else if (sub === "use" && args[1]) {
+                try {
+                  const cfg = loadProviders();
+                  setActiveProvider(cfg, args[1]);
+                  const p = loadProviders().providers.find((p2) => p2.name === args[1]);
+                  console.log(source_default.green(`
+\u2713 Active provider set to: ${p.name}
+`));
+                } catch (e) {
+                  console.log(source_default.red(`
+\u2717 ${e.message}
+`));
+                }
+              } else if (sub === "add" && args[1]) {
+                const name = args[1];
+                const url = args[2] || "";
+                const apiKey = args[3] || null;
+                const mode = args[4] || "openai";
+                try {
+                  const cfg = loadProviders();
+                  upsertProvider(cfg, {
+                    name,
+                    baseUrl: url,
+                    apiKey,
+                    apiMode: mode,
+                    models: [],
+                    active: false
+                  });
+                  console.log(source_default.green(`
+\u2713 Provider "${name}" added at ${url}
+`));
+                } catch (e) {
+                  console.log(source_default.red(`
+\u2717 Failed to add provider: ${e.message}
+`));
+                }
+              } else {
+                console.log(source_default.cyan(`
+Provider Commands:
+  /providers list              - Show all available providers
+  /providers use <name>        - Switch active provider
+  /providers add <name> <url>  - Add a custom provider
+
+Usage:
+  /providers use nvidia-nim     # Route to NVIDIA NIM
+  /providers use pc-gateway     # Route to PC Lilith Gateway
+  /providers add custom-api https://my-api.com/v1 sk-xxx openai
+  /models                       # Show models for active provider
+            `));
+              }
+            }
+            break;
           default:
             console.log(source_default.red(`Unknown command: ${cmd}`));
         }
       } else {
         console.log(source_default.yellow("Thinking..."));
         try {
-          const response = await queryGateway(options.pcUrl, line, options.model, options.persona);
+          const config = loadProviders();
+          const activeProvider = getActiveProvider(config);
+          const response = await queryGateway(line, activeProvider.name, options.model, options.persona);
           console.log(source_default.white(`
 ${response}
 `));
@@ -3683,7 +3958,9 @@ ${response}
   } else {
     console.log(source_default.yellow("Thinking..."));
     try {
-      const response = await queryGateway(options.pcUrl, query, options.model, options.persona);
+      const config = loadProviders();
+      const activeProvider = getActiveProvider(config);
+      const response = await queryGateway(query, activeProvider.name, options.model, options.persona);
       console.log(source_default.white(`\\n${response}\\n`));
     } catch (error) {
       console.log(source_default.red(`\\n\u2717 Gateway Error: ${error.message}`));

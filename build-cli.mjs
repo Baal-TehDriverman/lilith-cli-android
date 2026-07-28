@@ -43,7 +43,6 @@ let content = readFileSync(outFile, 'utf-8');
 // Remove any existing shebang lines (esbuild may have placed it incorrectly)
 content = content.replace(/^#!.*\n/gm, '');
 // Add correct shebang as first line
-content = '#!/data/user/0/com.hermesagent.android/files/home/.nodejs/node\n' + content;
+content = '#!/data/user/0/com.hermesagent.android/files/home/.nodejs-lts/bin/node\n' + content;
 writeFileSync(outFile, content);
 console.log('✓ Build complete with shebang: dist/main.cjs');
-
