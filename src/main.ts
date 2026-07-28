@@ -26,6 +26,7 @@ import { startKairos } from './kairos/orchestrator.js';
 import { runDreamCycle } from './dream/autoDream.js';
 import { showBuddy } from './buddy/companion.js';
 import { checkGatewayStatus, listModels, queryGateway } from './tools/gateway.js';
+import { loadProviders, setActiveProvider, upsertProvider, listProviders, getActiveProvider } from './tools/providers.js';
 
 const program = new Command();
 
@@ -152,6 +153,58 @@ Commands:
             case 'models':
               await listModels(options.pcUrl);
               break;
+            // NEW: provider subcommands
+            case 'providers':
+              {
+                const sub = args[0] || '';
+                if (sub === 'list') {
+                  const cfg = loadProviders();
+                  listProviders(cfg);
+                } else if (sub === 'use' && args[1]) {
+                  try {
+                    const cfg = loadProviders();
+                    setActiveProvider(cfg, args[1]);
+                    const p = loadProviders().providers.find((p) => p.name === args[1]);
+                    console.log(chalk.green(`\n✓ Active provider set to: ${p.name}\n`));
+                  } catch (e: any) {
+                    console.log(chalk.red(`\n✗ ${e.message}\n`));
+                  }
+                } else if (sub === 'add' && args[1]) {
+                  // Usage: /providers add <name> <url> [apikey] [mode]
+                  const name = args[1];
+                  const url = args[2] || '';
+                  const apiKey = args[3] || null;
+                  const mode = (args[4] as 'openai' | 'anthropic' | 'nvidia-nim') || 'openai';
+                  try {
+                    const cfg = loadProviders();
+                    upsertProvider(cfg, {
+                      name,
+                      baseUrl: url,
+                      apiKey,
+                      apiMode: mode,
+                      models: [],
+                      active: false
+                    });
+                    console.log(chalk.green(`\n✓ Provider "${name}" added at ${url}\n`));
+                  } catch (e: any) {
+                    console.log(chalk.red(`\n✗ Failed to add provider: ${e.message}\n`));
+                  }
+                } else {
+                  console.log(chalk.cyan(`
+Provider Commands:
+  /providers list              - Show all available providers
+  /providers use <name>        - Switch active provider
+  /providers add <name> <url>  - Add a custom provider
+
+Usage:
+  /providers use nvidia-nim     # Route to NVIDIA NIM
+  /providers use pc-gateway     # Route to PC Lilith Gateway
+  /providers add custom-api https://my-api.com/v1 sk-xxx openai
+  /models                       # Show models for active provider
+            `));
+                }
+              }
+              break;
             default:
               console.log(chalk.red(`Unknown command: ${cmd}`));
           }
@@ -159,7 +212,9 @@ Commands:
           // Send to gateway
           console.log(chalk.yellow('Thinking...'));
           try {
-            const response = await queryGateway(options.pcUrl, line, options.model, options.persona);
+            const config = loadProviders();
+            const activeProvider = getActiveProvider(config);
+            const response = await queryGateway(line, activeProvider.name, options.model, options.persona);
             console.log(chalk.white(`\n${response}\n`));
           } catch (error) {
             console.log(chalk.red(`\\n✗ Gateway Error: ${error.message}`));
@@ -174,7 +229,9 @@ Commands:
       // Direct query
       console.log(chalk.yellow('Thinking...'));
       try {
-        const response = await queryGateway(options.pcUrl, query, options.model, options.persona);
+        const config = loadProviders();
+        const activeProvider = getActiveProvider(config);
+        const response = await queryGateway(query, activeProvider.name, options.model, options.persona);
         console.log(chalk.white(`\\n${response}\\n`));
       } catch (error) {
         console.log(chalk.red(`\\n✗ Gateway Error: ${error.message}`));

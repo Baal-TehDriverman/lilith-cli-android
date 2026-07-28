@@ -30,6 +30,7 @@ function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || 'http://tehlappy.local:8080';
+  const [activeProvider, setActiveProvider] = useState<string>('pc-gateway');
 
   useEffect(() => {
     setPlatform(Capacitor.getPlatform());
