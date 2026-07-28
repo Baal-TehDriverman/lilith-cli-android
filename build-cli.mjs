@@ -8,8 +8,8 @@ import { readFileSync, writeFileSync } from 'fs';
 const ESBUILD_BINARY = process.env.HOME + '/lilith-cli-android/node_modules/@esbuild/android-arm64/bin/esbuild';
 process.env.ESBUILD_BINARY_PATH = ESBUILD_BINARY;
 
-const entry = process.env.HOME + '/lilith-cli-android/src/main.ts';
-const outDir = process.env.HOME + '/lilith-cli-android/dist';
+const entry = process.env.HOME + '/lilith-work/lilith-cli-android/src/main.ts';
+const outDir = process.env.HOME + '/lilith-work/lilith-cli-android/dist';
 
 // Node builtins to externalize
 const nodeBuiltins = [

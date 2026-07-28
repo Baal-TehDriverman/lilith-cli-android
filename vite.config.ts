@@ -11,7 +11,7 @@ export default defineConfig({
     minify: 'terser',
     rollupOptions: {
       input: {
-        main: './main.tsx',
+        main: 'main.tsx',
       },
     },
   },

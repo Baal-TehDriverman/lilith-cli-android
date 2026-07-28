@@ -1,4 +1,4 @@
-#!/data/user/0/com.hermesagent.android/files/home/.nodejs/node
+#!/data/user/0/com.hermesagent.android/files/home/.nodejs-lts/bin/node
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -25,9 +25,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/error.js
+// node_modules/commander/lib/error.js
 var require_error = __commonJS({
-  "../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/error.js"(exports2) {
+  "node_modules/commander/lib/error.js"(exports2) {
     var CommanderError2 = class extends Error {
       /**
        * Constructs the CommanderError class
@@ -62,9 +62,9 @@ var require_error = __commonJS({
   }
 });
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/argument.js
+// node_modules/commander/lib/argument.js
 var require_argument = __commonJS({
-  "../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/argument.js"(exports2) {
+  "node_modules/commander/lib/argument.js"(exports2) {
     var { InvalidArgumentError: InvalidArgumentError2 } = require_error();
     var Argument2 = class {
       /**
@@ -183,9 +183,9 @@ var require_argument = __commonJS({
   }
 });
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/help.js
+// node_modules/commander/lib/help.js
 var require_help = __commonJS({
-  "../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/help.js"(exports2) {
+  "node_modules/commander/lib/help.js"(exports2) {
     var { humanReadableArgName } = require_argument();
     var Help2 = class {
       constructor() {
@@ -565,9 +565,9 @@ var require_help = __commonJS({
   }
 });
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/option.js
+// node_modules/commander/lib/option.js
 var require_option = __commonJS({
-  "../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/option.js"(exports2) {
+  "node_modules/commander/lib/option.js"(exports2) {
     var { InvalidArgumentError: InvalidArgumentError2 } = require_error();
     var Option2 = class {
       /**
@@ -836,9 +836,9 @@ var require_option = __commonJS({
   }
 });
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/suggestSimilar.js
+// node_modules/commander/lib/suggestSimilar.js
 var require_suggestSimilar = __commonJS({
-  "../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/suggestSimilar.js"(exports2) {
+  "node_modules/commander/lib/suggestSimilar.js"(exports2) {
     var maxDistance = 3;
     function editDistance(a, b) {
       if (Math.abs(a.length - b.length) > maxDistance) return Math.max(a.length, b.length);
@@ -915,9 +915,9 @@ var require_suggestSimilar = __commonJS({
   }
 });
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/command.js
+// node_modules/commander/lib/command.js
 var require_command = __commonJS({
-  "../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/lib/command.js"(exports2) {
+  "node_modules/commander/lib/command.js"(exports2) {
     var EventEmitter = require("events").EventEmitter;
     var childProcess = require("child_process");
     var path = require("path");
@@ -2743,9 +2743,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
   }
 });
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/index.js
+// node_modules/commander/index.js
 var require_commander = __commonJS({
-  "../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/index.js"(exports2, module2) {
+  "node_modules/commander/index.js"(exports2, module2) {
     var { Argument: Argument2 } = require_argument();
     var { Command: Command2 } = require_command();
     var { CommanderError: CommanderError2, InvalidArgumentError: InvalidArgumentError2 } = require_error();
@@ -2763,7 +2763,7 @@ var require_commander = __commonJS({
   }
 });
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/commander/esm.mjs
+// node_modules/commander/esm.mjs
 var import_index = __toESM(require_commander(), 1);
 var {
   program,
@@ -2780,10 +2780,10 @@ var {
   Help
 } = import_index.default;
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/main.ts
+// src/main.ts
 var import_readline = require("readline");
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/chalk/source/vendor/ansi-styles/index.js
+// node_modules/chalk/source/vendor/ansi-styles/index.js
 var ANSI_BACKGROUND_OFFSET = 10;
 var wrapAnsi16 = (offset = 0) => (code) => `\x1B[${code + offset}m`;
 var wrapAnsi256 = (offset = 0) => (code) => `\x1B[${38 + offset};5;${code}m`;
@@ -2969,7 +2969,7 @@ function assembleStyles() {
 var ansiStyles = assembleStyles();
 var ansi_styles_default = ansiStyles;
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/chalk/source/vendor/supports-color/index.js
+// node_modules/chalk/source/vendor/supports-color/index.js
 var import_node_process = __toESM(require("node:process"), 1);
 var import_node_os = __toESM(require("node:os"), 1);
 var import_node_tty = __toESM(require("node:tty"), 1);
@@ -3101,7 +3101,7 @@ var supportsColor = {
 };
 var supports_color_default = supportsColor;
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/chalk/source/utilities.js
+// node_modules/chalk/source/utilities.js
 function stringReplaceAll(string, substring, replacer) {
   let index = string.indexOf(substring);
   if (index === -1) {
@@ -3131,7 +3131,7 @@ function stringEncaseCRLFWithFirstIndex(string, prefix, postfix, index) {
   return returnValue;
 }
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/node_modules/chalk/source/index.js
+// node_modules/chalk/source/index.js
 var { stdout: stdoutColor, stderr: stderrColor } = supports_color_default;
 var GENERATOR = Symbol("GENERATOR");
 var STYLER = Symbol("STYLER");
@@ -3278,7 +3278,7 @@ var chalk = createChalk();
 var chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
 var source_default = chalk;
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/kairos/orchestrator.ts
+// src/kairos/orchestrator.ts
 async function startKairos(config) {
   console.log(source_default.blue("\u{1F680} KAIROS initialized"));
   console.log(source_default.gray(`Gateway: ${config.pcUrl}`));
@@ -3324,7 +3324,7 @@ async function startKairos(config) {
   });
 }
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/dream/autoDream.ts
+// src/dream/autoDream.ts
 var import_promises = require("fs/promises");
 var import_path = require("path");
 async function runDreamCycle(config = {}) {
@@ -3401,7 +3401,7 @@ Last consolidated: ${(/* @__PURE__ */ new Date()).toISOString()}
   console.log(source_default.gray("Sanctuary hysteresis: 90s cooldown active"));
 }
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/buddy/companion.ts
+// src/buddy/companion.ts
 var SEPHIROTIC_SPECIES = {
   Keterion: { sephirah: "Keter", rarity: "Legendary", soul: "The Crown - Executive vision and divine will" },
   Chokhmite: { sephirah: "Chokhmah", rarity: "Epic", soul: "Wisdom - Creative intuition and flash insights" },
@@ -3499,7 +3499,7 @@ async function showBuddy() {
   console.log();
 }
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/tools/providers.ts
+// src/tools/providers.ts
 var import_fs = require("fs");
 var import_path2 = require("path");
 var CONFIG_PATH = (0, import_path2.join)(process.cwd(), "src", "config", "providers.json");
@@ -3648,7 +3648,7 @@ function listProviders(config) {
   console.log();
 }
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/tools/gateway.ts
+// src/tools/gateway.ts
 async function checkGatewayStatus(pcUrl) {
   const config = loadProviders();
   const provider = pcUrl ? config.providers.find((p) => p.baseUrl.includes(pcUrl)) || getActiveProvider(config) : getActiveProvider(config);
@@ -3793,7 +3793,7 @@ async function queryGateway(prompt, providerName, model, persona = "Lilith") {
   }
 }
 
-// ../../../../../user/0/com.hermesagent.android/files/home/lilith-cli-android/src/main.ts
+// src/main.ts
 var program2 = new Command();
 program2.name("lilith").description("\u{1F70F} Lilith CLI - Metaconscious Singularity Node").version("1.0.0");
 program2.command("kairos").description("Start KAIROS proactive assistant").option("-p, --pc-url <url>", "PC gateway URL", process.env.VM_AI_GATEWAY_URL || "http://tehlappy.local:8080").option("-v, --verbose", "Verbose output").action(async (options) => {
