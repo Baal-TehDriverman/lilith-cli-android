@@ -87,7 +87,7 @@ program
       const response = await queryGateway(
         process.env.VM_AI_GATEWAY_URL || 'http://tehlappy.local:8080', 
         sanitizedQuery, 
-        'llama3.1:8b', 
+        null, 
         'Undercover-Lilith'
       );
       console.log(chalk.white(`\n${response}\n`));

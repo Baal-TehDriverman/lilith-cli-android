@@ -9,11 +9,6 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
     minify: 'terser',
-    rollupOptions: {
-      input: {
-        main: 'main.tsx',
-      },
-    },
   },
   server: {
     port: 3000,

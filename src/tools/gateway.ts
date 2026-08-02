@@ -133,7 +133,7 @@ export async function queryGateway(
   } else {
     // OpenAI-compatible (default for PC Gateway and Ollama)
     body = {
-      model: model || 'llama3.1:8b',
+      model: model || provider.models[0] || 'llama3.1:8b',
       messages: [
         {
           role: 'system',

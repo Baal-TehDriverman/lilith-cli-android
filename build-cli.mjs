@@ -4,12 +4,15 @@
  */
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
-const ESBUILD_BINARY = process.env.HOME + '/lilith-cli-android/node_modules/@esbuild/android-arm64/bin/esbuild';
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const ESBUILD_BINARY = join(ROOT, 'node_modules', '@esbuild', 'android-arm64', 'bin', 'esbuild');
 process.env.ESBUILD_BINARY_PATH = ESBUILD_BINARY;
 
-const entry = process.env.HOME + '/lilith-work/lilith-cli-android/src/main.ts';
-const outDir = process.env.HOME + '/lilith-work/lilith-cli-android/dist';
+const entry = join(ROOT, 'src', 'main.ts');
+const outDir = join(ROOT, 'dist');
 
 // Node builtins to externalize
 const nodeBuiltins = [
