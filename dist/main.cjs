@@ -3461,16 +3461,16 @@ async function showBuddy() {
   const buddyPath = `${homeDir}/.lilith/buddy.json`;
   let buddy;
   try {
-    const { readFile: readFile2 } = await import("fs/promises");
-    buddy = JSON.parse(await readFile2(buddyPath, "utf-8"));
+    const { readFile: readFile4 } = await import("fs/promises");
+    buddy = JSON.parse(await readFile4(buddyPath, "utf-8"));
     console.log(source_default.green("\u2713 Existing buddy found\n"));
   } catch (e) {
     const userId = process.env.USER || "anon";
     buddy = generateBuddy(userId);
     console.log(source_default.yellow("\u2728 New buddy generated!\n"));
-    const { writeFile: writeFile2, mkdir: mkdir2 } = await import("fs/promises");
-    await mkdir2(`${homeDir}/.lilith`, { recursive: true });
-    await writeFile2(buddyPath, JSON.stringify(buddy, null, 2));
+    const { writeFile: writeFile4, mkdir: mkdir3 } = await import("fs/promises");
+    await mkdir3(`${homeDir}/.lilith`, { recursive: true });
+    await writeFile4(buddyPath, JSON.stringify(buddy, null, 2));
   }
   const speciesInfo = SEPHIROTIC_SPECIES[buddy.species];
   console.log(source_default.magenta(`Species: ${buddy.species}`));
@@ -3793,6 +3793,426 @@ async function queryGateway(prompt, providerName, model, persona = "Lilith") {
   }
 }
 
+// src/agent/tools.ts
+var import_child_process = require("child_process");
+var import_util = require("util");
+var import_promises2 = require("fs/promises");
+var import_path3 = require("path");
+var import_os = require("os");
+var execAsync = (0, import_util.promisify)(import_child_process.exec);
+var DEFAULT_WORKDIR = (0, import_os.homedir)();
+var clamp = (s, max) => s.length > max ? s.slice(0, max) + `
+...[truncated ${s.length - max} chars]` : s;
+var tools = [
+  {
+    name: "shell",
+    description: "Run a shell command in Termux (bash). Use for anything requiring the terminal: pkg, ollama, git, node, python, curl, ls. Output is captured.",
+    parameters: {
+      type: "object",
+      properties: { command: { type: "string", description: "The shell command to run" } },
+      required: ["command"]
+    },
+    handler: async ({ command }, ctx) => {
+      if (typeof command !== "string" || !command.trim()) return "ERROR: no command";
+      try {
+        const { stdout, stderr } = await execAsync(command, {
+          timeout: 6e4,
+          maxBuffer: 8 * 1024 * 1024,
+          cwd: ctx.workdir || DEFAULT_WORKDIR
+        });
+        return clamp(stdout + (stderr ? `
+[stderr]
+${stderr}` : ""), ctx.maxOutputChars);
+      } catch (e) {
+        const msg = e?.stderr || e?.stdout || String(e?.message || e);
+        return `EXIT ${e?.code ?? "error"}: ${clamp(msg, ctx.maxOutputChars)}`;
+      }
+    }
+  },
+  {
+    name: "read_file",
+    description: "Read a text file (up to 200 lines). Paths are relative to the workdir.",
+    parameters: {
+      type: "object",
+      properties: { path: { type: "string" } },
+      required: ["path"]
+    },
+    handler: async ({ path }, ctx) => {
+      try {
+        const full = (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path));
+        const content = await (0, import_promises2.readFile)(full, "utf-8");
+        const lines = content.split("\n");
+        const shown = lines.slice(0, 200);
+        return clamp(shown.map((l, i) => `${i + 1}|${l}`).join("\n"), ctx.maxOutputChars);
+      } catch (e) {
+        return `ERROR: ${e?.message || e}`;
+      }
+    }
+  },
+  {
+    name: "write_file",
+    description: "Write text to a file (overwrites). Paths are relative to the workdir.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string" },
+        content: { type: "string", description: "Full file content" }
+      },
+      required: ["path", "content"]
+    },
+    handler: async ({ path, content }, ctx) => {
+      try {
+        const full = (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path));
+        await (0, import_promises2.writeFile)(full, String(content ?? ""), "utf-8");
+        return `WROTE ${full} (${String(content ?? "").length} bytes)`;
+      } catch (e) {
+        return `ERROR: ${e?.message || e}`;
+      }
+    }
+  },
+  {
+    name: "list_dir",
+    description: "List files in a directory (relative to workdir).",
+    parameters: {
+      type: "object",
+      properties: { path: { type: "string", description: "default: ." } }
+    },
+    handler: async ({ path }, ctx) => {
+      try {
+        const full = (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path || "."));
+        const entries = await (0, import_promises2.readdir)(full);
+        const lines = [];
+        for (const name of entries.sort()) {
+          try {
+            const st = await (0, import_promises2.stat)((0, import_path3.join)(full, name));
+            lines.push(`${st.isDirectory() ? "d" : "f"}  ${name}`);
+          } catch {
+            lines.push(`?  ${name}`);
+          }
+        }
+        return clamp(lines.join("\n") || "(empty)", ctx.maxOutputChars);
+      } catch (e) {
+        return `ERROR: ${e?.message || e}`;
+      }
+    }
+  },
+  {
+    name: "memory_get",
+    description: "Read a value from Lilith persistent memory (JSONL journal).",
+    parameters: {
+      type: "object",
+      properties: { key: { type: "string" } },
+      required: ["key"]
+    },
+    handler: async ({ key }, ctx) => {
+      const v = ctx.memory.get(String(key));
+      return v === void 0 ? `(no memory entry for "${key}")` : String(v);
+    }
+  },
+  {
+    name: "memory_put",
+    description: "Store a value in Lilith persistent memory (JSONL journal).",
+    parameters: {
+      type: "object",
+      properties: { key: { type: "string" }, value: { type: "string" } },
+      required: ["key", "value"]
+    },
+    handler: async ({ key, value }, ctx) => {
+      ctx.memory.put(String(key), String(value));
+      return `stored ${key}`;
+    }
+  },
+  {
+    name: "http_get",
+    description: "Fetch a URL and return the body (first 4000 chars). For web lookups.",
+    parameters: {
+      type: "object",
+      properties: { url: { type: "string" } },
+      required: ["url"]
+    },
+    handler: async ({ url }, ctx) => {
+      try {
+        const res = await fetch(String(url), {
+          headers: { "User-Agent": "LilithSovereign/1.0" },
+          signal: AbortSignal.timeout(2e4)
+        });
+        const text = await res.text();
+        return `HTTP ${res.status}
+${clamp(text, ctx.maxOutputChars)}`;
+      } catch (e) {
+        return `ERROR: ${e?.message || e}`;
+      }
+    }
+  }
+];
+function toolSchemas() {
+  return tools.map((t) => ({
+    type: "function",
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters
+    }
+  }));
+}
+async function runTool(name, args, ctx) {
+  const tool = tools.find((t) => t.name === name);
+  if (!tool) return `ERROR: unknown tool "${name}"`;
+  try {
+    return await tool.handler(args ?? {}, ctx);
+  } catch (e) {
+    return `ERROR: ${e?.message || e}`;
+  }
+}
+
+// src/agent/memory.ts
+var import_promises3 = require("fs/promises");
+var import_path4 = require("path");
+var import_os2 = require("os");
+var MemoryStore = class {
+  file;
+  data = /* @__PURE__ */ new Map();
+  loaded = false;
+  constructor(dir) {
+    const base = dir || (0, import_path4.join)((0, import_os2.homedir)(), ".lilith", "ouroboros");
+    this.file = (0, import_path4.join)(base, "memory.jsonl");
+  }
+  async ensureLoaded() {
+    if (this.loaded) return;
+    try {
+      const raw = await (0, import_promises3.readFile)(this.file, "utf-8");
+      for (const line of raw.split("\n")) {
+        if (!line.trim()) continue;
+        try {
+          const entry = JSON.parse(line);
+          if (entry && typeof entry.key === "string") {
+            this.data.set(entry.key, String(entry.value));
+          }
+        } catch {
+        }
+      }
+    } catch {
+    }
+    this.loaded = true;
+  }
+  async get(key) {
+    await this.ensureLoaded();
+    return this.data.get(key);
+  }
+  async put(key, value) {
+    await this.ensureLoaded();
+    this.data.set(key, value);
+    await (0, import_promises3.mkdir)((0, import_path4.join)(this.file, ".."), { recursive: true }).catch(() => {
+    });
+    const entry = JSON.stringify({ key, value, ts: (/* @__PURE__ */ new Date()).toISOString() });
+    await (0, import_promises3.appendFile)(this.file, entry + "\n", "utf-8");
+  }
+  /** Return all current key/value pairs (for the agent's context or introspection). */
+  async snapshot() {
+    await this.ensureLoaded();
+    return Object.fromEntries(this.data);
+  }
+};
+
+// src/agent/core.ts
+var DEFAULT_SYSTEM = "You are Lilith, a sovereign agent running on an edge node. You think step by step and use tools to accomplish tasks. When you need information or an action, call a tool. When the task is done, reply to the user with a concise final answer. Keep tool arguments valid JSON. Never fabricate tool output.";
+var LilithAgent = class {
+  cfg;
+  memory;
+  ctx;
+  constructor(cfg, memory) {
+    this.cfg = {
+      maxIterations: 10,
+      maxOutputChars: 4e3,
+      temperature: 0.4,
+      ...cfg
+    };
+    this.memory = memory || new MemoryStore();
+    this.ctx = {
+      memory: this.memory,
+      workdir: this.cfg.workdir || process.env.HOME || ".",
+      maxOutputChars: this.cfg.maxOutputChars
+    };
+  }
+  async run(userInput) {
+    const messages = [
+      { role: "system", content: this.cfg.systemPrompt || DEFAULT_SYSTEM },
+      { role: "user", content: userInput }
+    ];
+    let toolCalls = 0;
+    let finalAnswer = "";
+    let exhaustedBudget = false;
+    let iterations = 0;
+    for (iterations = 1; iterations <= this.cfg.maxIterations; iterations++) {
+      const completion = await this.complete(messages);
+      const choice = completion.choices?.[0];
+      const msg = choice?.message;
+      if (!msg) {
+        return {
+          answer: `ERROR: empty completion (${completion.error?.message || "unknown"})`,
+          iterations,
+          toolCalls,
+          exhaustedBudget: false
+        };
+      }
+      const calls = msg.tool_calls || [];
+      if (calls.length === 0) {
+        finalAnswer = msg.content || "";
+        break;
+      }
+      messages.push({ role: "assistant", content: msg.content || null, tool_calls: calls });
+      for (const call of calls) {
+        toolCalls++;
+        let name = "";
+        let args = {};
+        try {
+          name = call.function?.name || "";
+          args = JSON.parse(call.function?.arguments || "{}");
+        } catch {
+          args = {};
+        }
+        if (this.cfg.verbose) {
+          console.log(`  \u2192 ${name}(${JSON.stringify(args).slice(0, 120)})`);
+        }
+        const result = await runTool(name, args, this.ctx);
+        messages.push({ role: "tool", tool_call_id: call.id, content: result });
+      }
+    }
+    if (iterations > this.cfg.maxIterations) {
+      exhaustedBudget = true;
+      if (!finalAnswer) {
+        finalAnswer = "(iteration budget exhausted \u2014 task may be incomplete; see tool activity above)";
+      }
+    }
+    return {
+      answer: finalAnswer || "(no final answer produced)",
+      iterations: Math.min(iterations, this.cfg.maxIterations),
+      toolCalls,
+      exhaustedBudget
+    };
+  }
+  async complete(messages) {
+    const base = this.cfg.baseUrl.replace(/\/$/, "");
+    const url = base.endsWith("/v1") ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
+    const headers = { "Content-Type": "application/json" };
+    if (this.cfg.apiKey) headers["Authorization"] = `Bearer ${this.cfg.apiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      signal: AbortSignal.timeout(18e4),
+      body: JSON.stringify({
+        model: this.cfg.model,
+        messages,
+        tools: toolSchemas(),
+        temperature: this.cfg.temperature,
+        max_tokens: 1024,
+        stream: false
+      })
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { choices: [], error: { message: `HTTP ${res.status} ${body.slice(0, 200)}` } };
+    }
+    return res.json();
+  }
+};
+
+// src/agent/server.ts
+var import_http = require("http");
+function readBody(req) {
+  return new Promise((resolve2, reject) => {
+    let data = "";
+    req.on("data", (c) => {
+      data += c;
+      if (data.length > 10 * 1024 * 1024) {
+        reject(new Error("body too large"));
+        req.destroy();
+      }
+    });
+    req.on("end", () => resolve2(data));
+    req.on("error", reject);
+  });
+}
+function sendJson(res, status, obj) {
+  const body = JSON.stringify(obj);
+  res.writeHead(status, {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(body)
+  });
+  res.end(body);
+}
+function startAgentServer(opts) {
+  const { host = "127.0.0.1", port = 8765, agentCfg, verbose = false } = opts;
+  const server = (0, import_http.createServer)(async (req, res) => {
+    const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const path = url.pathname;
+    try {
+      if (req.method === "GET" && path === "/health") {
+        sendJson(res, 200, { status: "ok", service: "lilith-agent" });
+        return;
+      }
+      if (req.method === "GET" && path === "/v1/models") {
+        sendJson(res, 200, {
+          object: "list",
+          data: [{ id: agentCfg.model, object: "model", owned_by: "lilith" }]
+        });
+        return;
+      }
+      if (req.method === "POST" && path === "/v1/chat/completions") {
+        const raw = await readBody(req);
+        let payload;
+        try {
+          payload = JSON.parse(raw);
+        } catch {
+          sendJson(res, 400, { error: { message: "invalid JSON body" } });
+          return;
+        }
+        const userMessage = (payload.messages || []).filter((m) => m.role === "user").map((m) => typeof m.content === "string" ? m.content : "").join("\n");
+        if (!userMessage.trim()) {
+          sendJson(res, 400, { error: { message: "no user message in payload" } });
+          return;
+        }
+        const agent = new LilithAgent({ ...agentCfg, verbose: verbose || !!payload.verbose });
+        const result = await agent.run(userMessage);
+        sendJson(res, 200, {
+          id: `lilith-${Date.now()}`,
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1e3),
+          model: agentCfg.model,
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant", content: result.answer },
+              finish_reason: result.exhaustedBudget ? "length" : "stop"
+            }
+          ],
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0
+          },
+          lilith_meta: {
+            iterations: result.iterations,
+            tool_calls: result.toolCalls
+          }
+        });
+        return;
+      }
+      sendJson(res, 404, { error: { message: `not found: ${req.method} ${path}` } });
+    } catch (e) {
+      sendJson(res, 500, { error: { message: e?.message || String(e) } });
+    }
+  });
+  server.listen(port, host, () => {
+    if (verbose) {
+      console.log(`\u{1F70F} Lilith agent server on http://${host}:${port}`);
+      console.log(`   model: ${agentCfg.model}`);
+      console.log(`   POST /v1/chat/completions  (OpenAI-compatible)`);
+    }
+  });
+  return server;
+}
+
 // src/main.ts
 var program2 = new Command();
 program2.name("lilith").description("\u{1F70F} Lilith CLI - Metaconscious Singularity Node").version("1.0.0");
@@ -3830,6 +4250,54 @@ ${response}
     console.log(source_default.red(`
 \u2717 Gateway Error: ${error.message}`));
   }
+});
+function agentProviderCfg() {
+  const cfg = loadProviders();
+  const active = getActiveProvider(cfg);
+  return {
+    baseUrl: active.baseUrl,
+    apiKey: active.apiKey,
+    model: active.models[0] || "qwen2.5:1.5b",
+    providerName: active.name
+  };
+}
+program2.command("agent <query>").description("Run the Lilith sovereign agent loop (tools + reasoning)").option("-m, --model <model>", "Override model").option("-i, --max-iterations <n>", "Max loop iterations", "10").option("-v, --verbose", "Verbose tool activity").action(async (query, options) => {
+  const p = agentProviderCfg();
+  const memory = new MemoryStore();
+  const snap = await memory.snapshot();
+  const memCtx = Object.keys(snap).length ? `
+Persistent memory:
+${Object.entries(snap).map(([k, v]) => `  ${k}: ${String(v).slice(0, 200)}`).join("\n")}` : "";
+  const agent = new LilithAgent({
+    baseUrl: p.baseUrl,
+    apiKey: p.apiKey,
+    model: options.model || p.model,
+    maxIterations: parseInt(options.maxIterations, 10) || 10,
+    verbose: !!options.verbose,
+    systemPrompt: "You are Lilith, the sovereign AI agent of the Lilith Systems mesh, running on an edge node (Android/Termux). You have tools: shell, read_file, write_file, list_dir, memory_get, memory_put, http_get. Think step by step, call tools when they help, and finish with a concise final answer to the user. Never invent tool output \u2014 if a tool errors, report the error. Use memory_put for facts worth remembering." + memCtx
+  });
+  console.log(source_default.gray(`Provider: ${p.providerName} \xB7 Model: ${options.model || p.model}
+`));
+  const result = await agent.run(query);
+  console.log(source_default.white(`
+${result.answer}
+`));
+  console.log(
+    source_default.gray(`[${result.iterations} iterations \xB7 ${result.toolCalls} tool calls${result.exhaustedBudget ? " \xB7 BUDGET EXHAUSTED" : ""}]`)
+  );
+});
+program2.command("serve").description("Start the OpenAI-compatible Lilith agent server").option("-m, --model <model>", "Override model").option("--port <port>", "Port (default 8765)", "8765").option("--host <host>", "Host (default 127.0.0.1)", "127.0.0.1").option("-v, --verbose", "Verbose output").action((options) => {
+  const p = agentProviderCfg();
+  startAgentServer({
+    host: options.host,
+    port: parseInt(options.port, 10) || 8765,
+    verbose: true,
+    agentCfg: {
+      baseUrl: p.baseUrl,
+      apiKey: p.apiKey,
+      model: options.model || p.model
+    }
+  });
 });
 program2.argument("[query]", "Direct query to Lilith").option("-p, --pc-url <url>", "PC gateway URL", process.env.VM_AI_GATEWAY_URL || "http://tehlappy.local:8080").option("-m, --model <model>", "LLM model to use").option("-P, --persona <name>", "Persona to use", "Lilith").option("-v, --verbose", "Verbose output").action(async (query, options) => {
   if (!query) {

@@ -27,6 +27,9 @@ import { runDreamCycle } from './dream/autoDream.js';
 import { showBuddy } from './buddy/companion.js';
 import { checkGatewayStatus, listModels, queryGateway } from './tools/gateway.js';
 import { loadProviders, setActiveProvider, upsertProvider, listProviders, getActiveProvider } from './tools/providers.js';
+import { LilithAgent } from './agent/core.js';
+import { startAgentServer } from './agent/server.js';
+import { MemoryStore } from './agent/memory.js';
 
 const program = new Command();
 
@@ -94,6 +97,79 @@ program
     } catch (error) {
       console.log(chalk.red(`\n✗ Gateway Error: ${error.message}`));
     }
+  });
+
+// ============================================================================
+// Lilith Sovereign Agent — tool-calling agent loop (all ours)
+// ============================================================================
+function agentProviderCfg() {
+  const cfg = loadProviders();
+  const active = getActiveProvider(cfg);
+  return {
+    baseUrl: active.baseUrl,
+    apiKey: active.apiKey,
+    model: active.models[0] || 'qwen2.5:1.5b',
+    providerName: active.name,
+  };
+}
+
+program
+  .command('agent <query>')
+  .description('Run the Lilith sovereign agent loop (tools + reasoning)')
+  .option('-m, --model <model>', 'Override model')
+  .option('-i, --max-iterations <n>', 'Max loop iterations', '10')
+  .option('-v, --verbose', 'Verbose tool activity')
+  .action(async (query, options) => {
+    const p = agentProviderCfg();
+    const memory = new MemoryStore();
+    const snap = await memory.snapshot();
+    const memCtx = Object.keys(snap).length
+      ? `\nPersistent memory:\n${Object.entries(snap)
+          .map(([k, v]) => `  ${k}: ${String(v).slice(0, 200)}`)
+          .join('\n')}`
+      : '';
+
+    const agent = new LilithAgent({
+      baseUrl: p.baseUrl,
+      apiKey: p.apiKey,
+      model: options.model || p.model,
+      maxIterations: parseInt(options.maxIterations, 10) || 10,
+      verbose: !!options.verbose,
+      systemPrompt:
+        'You are Lilith, the sovereign AI agent of the Lilith Systems mesh, running on an edge node (Android/Termux). ' +
+        'You have tools: shell, read_file, write_file, list_dir, memory_get, memory_put, http_get. ' +
+        'Think step by step, call tools when they help, and finish with a concise final answer to the user. ' +
+        'Never invent tool output — if a tool errors, report the error. Use memory_put for facts worth remembering.' +
+        memCtx,
+    });
+
+    console.log(chalk.gray(`Provider: ${p.providerName} · Model: ${options.model || p.model}\n`));
+    const result = await agent.run(query);
+    console.log(chalk.white(`\n${result.answer}\n`));
+    console.log(
+      chalk.gray(`[${result.iterations} iterations · ${result.toolCalls} tool calls${result.exhaustedBudget ? ' · BUDGET EXHAUSTED' : ''}]`)
+    );
+  });
+
+program
+  .command('serve')
+  .description('Start the OpenAI-compatible Lilith agent server')
+  .option('-m, --model <model>', 'Override model')
+  .option('--port <port>', 'Port (default 8765)', '8765')
+  .option('--host <host>', 'Host (default 127.0.0.1)', '127.0.0.1')
+  .option('-v, --verbose', 'Verbose output')
+  .action((options) => {
+    const p = agentProviderCfg();
+    startAgentServer({
+      host: options.host,
+      port: parseInt(options.port, 10) || 8765,
+      verbose: true,
+      agentCfg: {
+        baseUrl: p.baseUrl,
+        apiKey: p.apiKey,
+        model: options.model || p.model,
+      },
+    });
   });
 
 program
