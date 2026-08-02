@@ -3759,7 +3759,7 @@ async function queryGateway(prompt, providerName, model, persona = "Lilith") {
     };
   } else {
     body = {
-      model: model || "llama3.1:8b",
+      model: model || provider.models[0] || "llama3.1:8b",
       messages: [
         {
           role: "system",
@@ -3820,7 +3820,7 @@ program2.command("undercover <query>").description("Run query in undercover mode
     const response = await queryGateway(
       process.env.VM_AI_GATEWAY_URL || "http://tehlappy.local:8080",
       sanitizedQuery,
-      "llama3.1:8b",
+      null,
       "Undercover-Lilith"
     );
     console.log(source_default.white(`
