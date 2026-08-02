@@ -1,0 +1,9 @@
+[submodule "cosmos-3-quantized-nssp"]
+	path = cosmos-3-quantized-nssp
+	url = https://github.com/Baal-TehDriverman/cosmos-3-quantized-nssp.git
+[submodule "devdashboard-public"]
+	path = devdashboard-public
+	url = https://github.com/Baal-TehDriverman/devdashboard-public.git
+[submodule "hermes-agent-self-evolution-asshole"]
+	path = hermes-agent-self-evolution-asshole
+	url = https://github.com/Baal-TehDriverman/hermes-agent-self-evolution-asshole.git
