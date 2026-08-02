@@ -8,3 +8,5 @@ android/.gradle
 *.aab
 keystore.jks
 .env
+# Local user config (contains API keys — never commit)
+.lilith/
