@@ -11,3 +11,4 @@ keystore.jks
 # Local user config (contains API keys — never commit)
 .lilith/
 .test-build/
+.test/
