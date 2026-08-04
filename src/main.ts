@@ -29,7 +29,7 @@ import { checkGatewayStatus, listModels, queryGateway } from './tools/gateway.js
 import { loadProviders, setActiveProvider, upsertProvider, listProviders, getActiveProvider } from './tools/providers.js';
 import { LilithAgent } from './agent/core.js';
 import { startAgentServer } from './agent/server.js';
-import { MemoryStore } from './agent/memory.js';
+import { createMemoryStore } from './agent/memory_hermes.js';
 
 const program = new Command();
 
@@ -119,9 +119,11 @@ program
   .option('-m, --model <model>', 'Override model')
   .option('-i, --max-iterations <n>', 'Max loop iterations', '10')
   .option('-v, --verbose', 'Verbose tool activity')
+  .option('-b, --memory-backend <backend>', 'Memory backend: journal (default) | hermes')
+  .option('--llm-timeout <ms>', 'Per-call LLM timeout in ms (default 180000; raise for slow CPU edge models)')
   .action(async (query, options) => {
     const p = agentProviderCfg();
-    const memory = new MemoryStore();
+    const memory = createMemoryStore(options.memoryBackend);
     const snap = await memory.snapshot();
     const memCtx = Object.keys(snap).length
       ? `\nPersistent memory:\n${Object.entries(snap)
@@ -135,6 +137,7 @@ program
       model: options.model || p.model,
       maxIterations: parseInt(options.maxIterations, 10) || 10,
       verbose: !!options.verbose,
+      llmTimeoutMs: options.llmTimeout ? parseInt(options.llmTimeout, 10) : undefined,
       systemPrompt:
         'You are Lilith, the sovereign AI agent of the Lilith Systems mesh, running on an edge node (Android/Termux). ' +
         'You have tools: shell, read_file, write_file, list_dir, memory_get, memory_put, http_get. ' +
@@ -158,12 +161,14 @@ program
   .option('--port <port>', 'Port (default 8765)', '8765')
   .option('--host <host>', 'Host (default 127.0.0.1)', '127.0.0.1')
   .option('-v, --verbose', 'Verbose output')
+  .option('-b, --memory-backend <backend>', 'Memory backend: journal (default) | hermes')
   .action((options) => {
     const p = agentProviderCfg();
     startAgentServer({
       host: options.host,
       port: parseInt(options.port, 10) || 8765,
       verbose: true,
+      memoryBackend: options.memoryBackend,
       agentCfg: {
         baseUrl: p.baseUrl,
         apiKey: p.apiKey,

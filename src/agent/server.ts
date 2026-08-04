@@ -10,12 +10,14 @@
 
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { LilithAgent, AgentConfig } from './core.js';
+import { createMemoryStore } from './memory_hermes.js';
 
 interface ServerOptions {
   host?: string;
   port?: number;
   agentCfg: AgentConfig;
   verbose?: boolean;
+  memoryBackend?: string;
 }
 
 function readBody(req: IncomingMessage): Promise<string> {
@@ -43,7 +45,8 @@ function sendJson(res: ServerResponse, status: number, obj: unknown): void {
 }
 
 export function startAgentServer(opts: ServerOptions): ReturnType<typeof createServer> {
-  const { host = '127.0.0.1', port = 8765, agentCfg, verbose = false } = opts;
+  const { host = '127.0.0.1', port = 8765, agentCfg, verbose = false, memoryBackend } = opts;
+  const sharedMemory = createMemoryStore(memoryBackend);
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -86,7 +89,7 @@ export function startAgentServer(opts: ServerOptions): ReturnType<typeof createS
           return;
         }
 
-        const agent = new LilithAgent({ ...agentCfg, verbose: verbose || !!payload.verbose });
+        const agent = new LilithAgent({ ...agentCfg, verbose: verbose || !!payload.verbose }, sharedMemory);
         const result = await agent.run(userMessage);
 
         sendJson(res, 200, {

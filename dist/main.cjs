@@ -3461,16 +3461,16 @@ async function showBuddy() {
   const buddyPath = `${homeDir}/.lilith/buddy.json`;
   let buddy;
   try {
-    const { readFile: readFile4 } = await import("fs/promises");
-    buddy = JSON.parse(await readFile4(buddyPath, "utf-8"));
+    const { readFile: readFile5 } = await import("fs/promises");
+    buddy = JSON.parse(await readFile5(buddyPath, "utf-8"));
     console.log(source_default.green("\u2713 Existing buddy found\n"));
   } catch (e) {
     const userId = process.env.USER || "anon";
     buddy = generateBuddy(userId);
     console.log(source_default.yellow("\u2728 New buddy generated!\n"));
-    const { writeFile: writeFile4, mkdir: mkdir3 } = await import("fs/promises");
-    await mkdir3(`${homeDir}/.lilith`, { recursive: true });
-    await writeFile4(buddyPath, JSON.stringify(buddy, null, 2));
+    const { writeFile: writeFile5, mkdir: mkdir4 } = await import("fs/promises");
+    await mkdir4(`${homeDir}/.lilith`, { recursive: true });
+    await writeFile5(buddyPath, JSON.stringify(buddy, null, 2));
   }
   const speciesInfo = SEPHIROTIC_SPECIES[buddy.species];
   console.log(source_default.magenta(`Species: ${buddy.species}`));
@@ -4158,6 +4158,46 @@ var MemoryStore = class {
 };
 
 // src/agent/core.ts
+var import_http = require("http");
+var import_https = require("https");
+function postJSON(url, headers, body, timeoutMs) {
+  const u = new URL(url);
+  const isHttps = u.protocol === "https:";
+  const mod = isHttps ? import_https.request : import_http.request;
+  return new Promise((resolve2, reject) => {
+    const data = JSON.stringify(body);
+    const req = mod(
+      {
+        hostname: u.hostname,
+        port: u.port || (isHttps ? 443 : 80),
+        path: u.pathname + u.search,
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) }
+      },
+      (res) => {
+        let raw = "";
+        res.on("data", (c) => {
+          raw += c;
+        });
+        res.on("end", () => {
+          try {
+            if (res.statusCode && res.statusCode >= 400) {
+              reject(new Error(`HTTP ${res.statusCode}: ${raw.slice(0, 300)}`));
+              return;
+            }
+            resolve2(JSON.parse(raw));
+          } catch (e) {
+            reject(new Error(`bad JSON from ${url}: ${e?.message}`));
+          }
+        });
+      }
+    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`LLM timeout after ${timeoutMs}ms`)));
+    req.on("error", (e) => reject(e));
+    req.write(data);
+    req.end();
+  });
+}
 var DEFAULT_SYSTEM = "You are Lilith, a sovereign agent running on an edge node. You think step by step and use tools to accomplish tasks. When you need information or an action, call a tool. When the task is done, reply to the user with a concise final answer. Keep tool arguments valid JSON. Never fabricate tool output.";
 var LilithAgent = class {
   cfg;
@@ -4237,31 +4277,151 @@ var LilithAgent = class {
   async complete(messages) {
     const base = this.cfg.baseUrl.replace(/\/$/, "");
     const url = base.endsWith("/v1") ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
-    const headers = { "Content-Type": "application/json" };
+    const headers = {};
     if (this.cfg.apiKey) headers["Authorization"] = `Bearer ${this.cfg.apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      signal: AbortSignal.timeout(18e4),
-      body: JSON.stringify({
-        model: this.cfg.model,
-        messages,
-        tools: toolSchemas(),
-        temperature: this.cfg.temperature,
-        max_tokens: 1024,
-        stream: false
-      })
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      return { choices: [], error: { message: `HTTP ${res.status} ${body.slice(0, 200)}` } };
+    try {
+      return await postJSON(
+        url,
+        headers,
+        {
+          model: this.cfg.model,
+          messages,
+          tools: toolSchemas(),
+          temperature: this.cfg.temperature,
+          max_tokens: 1024,
+          stream: false
+        },
+        this.cfg.llmTimeoutMs ?? 3e5
+      );
+    } catch (e) {
+      return {
+        choices: [],
+        error: { message: e?.message || String(e) }
+      };
     }
-    return res.json();
   }
 };
 
 // src/agent/server.ts
-var import_http = require("http");
+var import_http2 = require("http");
+
+// src/agent/memory_hermes.ts
+var import_promises4 = require("fs/promises");
+var import_path5 = require("path");
+var import_os3 = require("os");
+var HERMES_MEMORIES = (0, import_path5.join)((0, import_os3.homedir)(), ".hermes", "memories");
+var MEMORY_FILE = (0, import_path5.join)(HERMES_MEMORIES, "MEMORY.md");
+var USER_FILE = (0, import_path5.join)(HERMES_MEMORIES, "USER.md");
+var SEP = "\n\xA7\n";
+var BUDGET = 2200;
+var KEY_PREFIX = "LILITH-KEY ";
+var HermesMemoryStore = class {
+  fallback;
+  loaded = false;
+  entries = [];
+  constructor() {
+    this.fallback = new MemoryStore();
+  }
+  // ─── Loading ───
+  async ensureLoaded() {
+    if (this.loaded) return;
+    this.entries = [];
+    for (const file of [MEMORY_FILE, USER_FILE]) {
+      try {
+        const raw = await (0, import_promises4.readFile)(file, "utf-8");
+        for (const chunk of raw.split(SEP)) {
+          const c = chunk.trim();
+          if (!c) continue;
+          this.entries.push({ ...this.parseChunk(c), source: file });
+        }
+      } catch {
+      }
+    }
+    this.loaded = true;
+  }
+  parseChunk(chunk) {
+    if (chunk.startsWith(KEY_PREFIX)) {
+      const rest = chunk.slice(KEY_PREFIX.length);
+      const colon = rest.indexOf(":");
+      if (colon > 0) {
+        return {
+          chunk,
+          isLilith: true,
+          key: rest.slice(0, colon).trim(),
+          value: rest.slice(colon + 1).trim()
+        };
+      }
+    }
+    return { chunk, isLilith: false };
+  }
+  // ─── Read path ───
+  async get(key) {
+    await this.ensureLoaded();
+    const hit = this.entries.find((e) => e.isLilith && e.key === key);
+    if (hit) return hit.value;
+    return this.fallback.get(key);
+  }
+  async snapshot() {
+    await this.ensureLoaded();
+    const out = {};
+    for (const e of this.entries) {
+      if (e.isLilith && e.key) out[e.key] = e.value ?? "";
+    }
+    const journal = await this.fallback.snapshot();
+    for (const [k, v] of Object.entries(journal)) {
+      if (!(k in out)) out[k] = v;
+    }
+    return out;
+  }
+  /** Full memory text (all chunks from MEMORY.md + USER.md) for context. */
+  async fullContext() {
+    await this.ensureLoaded();
+    return this.entries.map((e) => e.chunk).join(SEP);
+  }
+  // ─── Write path (budget-aware, evicts only Lilith's own entries) ───
+  async put(key, value) {
+    await this.ensureLoaded();
+    const newChunk = `${KEY_PREFIX}${key}: ${value}`;
+    const sizeOf = (chunks) => chunks.reduce((n, c) => n + c.length + SEP.length, 0);
+    const memoryEntries = this.entries.filter((e) => e.source === MEMORY_FILE);
+    const userEntries = this.entries.filter((e) => e.source === USER_FILE);
+    const others = memoryEntries.filter((e) => !(e.isLilith && e.key === key));
+    let pending = [...others.map((e) => e.chunk), newChunk];
+    while (sizeOf(pending) > BUDGET) {
+      const victims = pending.map((c, i) => ({ c, i })).filter((x) => x.c.startsWith(KEY_PREFIX) && x.c !== newChunk);
+      if (victims.length === 0) break;
+      const victim = victims[0];
+      pending.splice(pending.indexOf(victim.c), 1);
+    }
+    if (sizeOf(pending) > BUDGET) {
+      console.warn("[hermes-memory] MEMORY.md budget held by Hermes entries \u2014 journal fallback");
+      return this.fallback.put(key, value);
+    }
+    const text = pending.join(SEP) + "\n";
+    try {
+      const tmp = MEMORY_FILE + ".lilith-tmp";
+      await (0, import_promises4.writeFile)(tmp, text, "utf-8");
+      await (0, import_promises4.writeFile)(MEMORY_FILE, text, "utf-8");
+      await (0, import_promises4.stat)(MEMORY_FILE);
+      try {
+        await (0, import_promises4.writeFile)(tmp, "", "utf-8");
+      } catch {
+      }
+      this.entries = [...pending.map((c) => ({ ...this.parseChunk(c), source: MEMORY_FILE })), ...userEntries];
+      this.loaded = true;
+    } catch (e) {
+      console.warn(`[hermes-memory] MEMORY.md write failed (${e?.message}) \u2014 journal fallback`);
+      await this.fallback.put(key, value);
+    }
+  }
+};
+function createMemoryStore(backend) {
+  const mode = (backend || process.env.LILITH_MEMORY_BACKEND || "journal").toLowerCase();
+  if (mode === "hermes") return new HermesMemoryStore();
+  return new MemoryStore();
+}
+
+// src/agent/server.ts
 function readBody(req) {
   return new Promise((resolve2, reject) => {
     let data = "";
@@ -4285,8 +4445,9 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 function startAgentServer(opts) {
-  const { host = "127.0.0.1", port = 8765, agentCfg, verbose = false } = opts;
-  const server = (0, import_http.createServer)(async (req, res) => {
+  const { host = "127.0.0.1", port = 8765, agentCfg, verbose = false, memoryBackend } = opts;
+  const sharedMemory = createMemoryStore(memoryBackend);
+  const server = (0, import_http2.createServer)(async (req, res) => {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     const path = url.pathname;
     try {
@@ -4315,7 +4476,7 @@ function startAgentServer(opts) {
           sendJson(res, 400, { error: { message: "no user message in payload" } });
           return;
         }
-        const agent = new LilithAgent({ ...agentCfg, verbose: verbose || !!payload.verbose });
+        const agent = new LilithAgent({ ...agentCfg, verbose: verbose || !!payload.verbose }, sharedMemory);
         const result = await agent.run(userMessage);
         sendJson(res, 200, {
           id: `lilith-${Date.now()}`,
@@ -4404,9 +4565,9 @@ function agentProviderCfg() {
     providerName: active.name
   };
 }
-program2.command("agent <query>").description("Run the Lilith sovereign agent loop (tools + reasoning)").option("-m, --model <model>", "Override model").option("-i, --max-iterations <n>", "Max loop iterations", "10").option("-v, --verbose", "Verbose tool activity").action(async (query, options) => {
+program2.command("agent <query>").description("Run the Lilith sovereign agent loop (tools + reasoning)").option("-m, --model <model>", "Override model").option("-i, --max-iterations <n>", "Max loop iterations", "10").option("-v, --verbose", "Verbose tool activity").option("-b, --memory-backend <backend>", "Memory backend: journal (default) | hermes").option("--llm-timeout <ms>", "Per-call LLM timeout in ms (default 180000; raise for slow CPU edge models)").action(async (query, options) => {
   const p = agentProviderCfg();
-  const memory = new MemoryStore();
+  const memory = createMemoryStore(options.memoryBackend);
   const snap = await memory.snapshot();
   const memCtx = Object.keys(snap).length ? `
 Persistent memory:
@@ -4417,6 +4578,7 @@ ${Object.entries(snap).map(([k, v]) => `  ${k}: ${String(v).slice(0, 200)}`).joi
     model: options.model || p.model,
     maxIterations: parseInt(options.maxIterations, 10) || 10,
     verbose: !!options.verbose,
+    llmTimeoutMs: options.llmTimeout ? parseInt(options.llmTimeout, 10) : void 0,
     systemPrompt: "You are Lilith, the sovereign AI agent of the Lilith Systems mesh, running on an edge node (Android/Termux). You have tools: shell, read_file, write_file, list_dir, memory_get, memory_put, http_get. Think step by step, call tools when they help, and finish with a concise final answer to the user. Never invent tool output \u2014 if a tool errors, report the error. Use memory_put for facts worth remembering." + memCtx
   });
   console.log(source_default.gray(`Provider: ${p.providerName} \xB7 Model: ${options.model || p.model}
@@ -4429,12 +4591,13 @@ ${result.answer}
     source_default.gray(`[${result.iterations} iterations \xB7 ${result.toolCalls} tool calls${result.exhaustedBudget ? " \xB7 BUDGET EXHAUSTED" : ""}]`)
   );
 });
-program2.command("serve").description("Start the OpenAI-compatible Lilith agent server").option("-m, --model <model>", "Override model").option("--port <port>", "Port (default 8765)", "8765").option("--host <host>", "Host (default 127.0.0.1)", "127.0.0.1").option("-v, --verbose", "Verbose output").action((options) => {
+program2.command("serve").description("Start the OpenAI-compatible Lilith agent server").option("-m, --model <model>", "Override model").option("--port <port>", "Port (default 8765)", "8765").option("--host <host>", "Host (default 127.0.0.1)", "127.0.0.1").option("-v, --verbose", "Verbose output").option("-b, --memory-backend <backend>", "Memory backend: journal (default) | hermes").action((options) => {
   const p = agentProviderCfg();
   startAgentServer({
     host: options.host,
     port: parseInt(options.port, 10) || 8765,
     verbose: true,
+    memoryBackend: options.memoryBackend,
     agentCfg: {
       baseUrl: p.baseUrl,
       apiKey: p.apiKey,

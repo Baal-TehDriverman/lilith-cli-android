@@ -10,6 +10,52 @@
 
 import { toolSchemas, runTool, ToolContext } from './tools.js';
 import { MemoryStore } from './memory.js';
+import { request as httpRequest } from 'http';
+import { request as httpsRequest } from 'https';
+
+// Slow CPU edge models (qwen2.5:1.5b on SD865) can take 2-5min per completion.
+// Node's fetch/undici has a hard ~300s headersTimeout that can't be raised without
+// importing undici directly. Using http(s).request instead gives full timeout
+// control with zero extra deps (respects the agent/ zero-dep constraint).
+
+interface LLMResponse { choices?: Array<{ message?: { content?: string; tool_calls?: any[] } }>; }
+
+function postJSON(url: string, headers: Record<string, string>, body: unknown, timeoutMs: number): Promise<LLMResponse> {
+  const u = new URL(url);
+  const isHttps = u.protocol === 'https:';
+  const mod: typeof httpRequest = (isHttps ? httpsRequest : httpRequest) as typeof httpRequest;
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = mod(
+      {
+        hostname: u.hostname,
+        port: u.port || (isHttps ? 443 : 80),
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (c: Buffer) => { raw += c; });
+        res.on('end', () => {
+          try {
+            if (res.statusCode && res.statusCode >= 400) {
+              reject(new Error(`HTTP ${res.statusCode}: ${raw.slice(0, 300)}`));
+              return;
+            }
+            resolve(JSON.parse(raw) as LLMResponse);
+          } catch (e: any) {
+            reject(new Error(`bad JSON from ${url}: ${e?.message}`));
+          }
+        });
+      }
+    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`LLM timeout after ${timeoutMs}ms`)));
+    req.on('error', (e: Error) => reject(e));
+    req.write(data);
+    req.end();
+  });
+}
 
 export interface AgentConfig {
   baseUrl: string;      // OpenAI-compatible endpoint, e.g. http://127.0.0.1:11434/v1
@@ -21,6 +67,7 @@ export interface AgentConfig {
   workdir?: string;
   verbose?: boolean;
   temperature?: number;
+  llmTimeoutMs?: number; // per-call timeout; default 180s, raise for slow CPU edge models
 }
 
 export interface AgentResult {
@@ -36,19 +83,26 @@ const DEFAULT_SYSTEM =
   'When the task is done, reply to the user with a concise final answer. Keep tool arguments ' +
   'valid JSON. Never fabricate tool output.';
 
+/** Structural memory interface — any store implementing get/put/snapshot works. */
+export interface AgentMemory {
+  get(key: string): Promise<string | undefined>;
+  put(key: string, value: string): Promise<void>;
+  snapshot(): Promise<Record<string, string>>;
+}
+
 export class LilithAgent {
   private cfg: AgentConfig;
-  private memory: MemoryStore;
+  private memory: AgentMemory;
   private ctx: ToolContext;
 
-  constructor(cfg: AgentConfig, memory?: MemoryStore) {
+  constructor(cfg: AgentConfig, memory?: AgentMemory) {
     this.cfg = {
       maxIterations: 10,
       maxOutputChars: 4000,
       temperature: 0.4,
       ...cfg,
     };
-    this.memory = memory || new MemoryStore();
+    this.memory = memory || new MemoryStore() as AgentMemory;
     this.ctx = {
       memory: this.memory,
       workdir: this.cfg.workdir || process.env.HOME || '.',
@@ -126,27 +180,28 @@ export class LilithAgent {
   private async complete(messages: any[]): Promise<any> {
     const base = this.cfg.baseUrl.replace(/\/$/, '');
     const url = base.endsWith('/v1') ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = {};
     if (this.cfg.apiKey) headers['Authorization'] = `Bearer ${this.cfg.apiKey}`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers,
-      signal: AbortSignal.timeout(180_000),
-      body: JSON.stringify({
-        model: this.cfg.model,
-        messages,
-        tools: toolSchemas(),
-        temperature: this.cfg.temperature,
-        max_tokens: 1024,
-        stream: false,
-      }),
-    });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      return { choices: [], error: { message: `HTTP ${res.status} ${body.slice(0, 200)}` } };
+    try {
+      return await postJSON(
+        url,
+        headers,
+        {
+          model: this.cfg.model,
+          messages,
+          tools: toolSchemas(),
+          temperature: this.cfg.temperature,
+          max_tokens: 1024,
+          stream: false,
+        },
+        this.cfg.llmTimeoutMs ?? 300_000
+      );
+    } catch (e: any) {
+      return {
+        choices: [],
+        error: { message: e?.message || String(e) },
+      };
     }
-    return res.json();
   }
 }
