@@ -105,7 +105,10 @@ export async function queryGateway(
     provider = getActiveProvider(config);
   }
 
-  const endpoint = `${provider.baseUrl}/v1/chat/completions`;
+  const base = provider.baseUrl.replace(/\/$/, '');
+  const endpoint = base.endsWith('/v1')
+    ? `${base}/chat/completions`
+    : `${base}/v1/chat/completions`;
 
   // Resolve persona -> full system prompt (registry lookup w/ fallback)
   const systemPrompt = resolveSystemPrompt(persona);

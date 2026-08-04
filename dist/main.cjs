@@ -3759,7 +3759,8 @@ async function queryGateway(prompt, providerName, model, persona = "Lilith") {
   } else {
     provider = getActiveProvider(config);
   }
-  const endpoint = `${provider.baseUrl}/v1/chat/completions`;
+  const base = provider.baseUrl.replace(/\/$/, "");
+  const endpoint = base.endsWith("/v1") ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
   const systemPrompt = resolveSystemPrompt(persona);
   let body;
   if (provider.apiMode === "anthropic") {
