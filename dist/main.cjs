@@ -4569,10 +4569,12 @@ ${response}
 function agentProviderCfg() {
   const cfg = loadProviders();
   const active = getActiveProvider(cfg);
+  const fallback = "qwen2.5:1.5b";
+  const prefer = ["qwen2.5:1.5b", "qwen2.5-coder:7b"].find((m) => active.models.includes(m));
   return {
     baseUrl: active.baseUrl,
     apiKey: active.apiKey,
-    model: active.models[0] || "qwen2.5:1.5b",
+    model: prefer || fallback,
     providerName: active.name
   };
 }

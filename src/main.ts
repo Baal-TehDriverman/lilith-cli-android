@@ -105,10 +105,16 @@ program
 function agentProviderCfg() {
   const cfg = loadProviders();
   const active = getActiveProvider(cfg);
+  // Agent mode needs a TOOL-CAPABLE model. The active provider's first model
+  // may be a reasoning model (mythos/shadows) that advertises tools but never
+  // emits tool_calls and is too slow for multi-step loops on edge CPU.
+  // Default to qwen2.5:1.5b (verified tool-capable); user can -m override.
+  const fallback = 'qwen2.5:1.5b';
+  const prefer = ['qwen2.5:1.5b', 'qwen2.5-coder:7b'].find((m) => active.models.includes(m));
   return {
     baseUrl: active.baseUrl,
     apiKey: active.apiKey,
-    model: active.models[0] || 'qwen2.5:1.5b',
+    model: prefer || fallback,
     providerName: active.name,
   };
 }
