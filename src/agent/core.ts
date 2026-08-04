@@ -120,36 +120,51 @@ export class LilithAgent {
     let finalAnswer = '';
     let exhaustedBudget = false;
     let iterations = 0;
+    let emptyCompletions = 0;
 
     for (iterations = 1; iterations <= this.cfg.maxIterations!; iterations++) {
       const completion = await this.complete(messages);
       const choice = completion.choices?.[0];
       const msg = choice?.message;
       if (!msg) {
-        return {
-          answer: `ERROR: empty completion (${completion.error?.message || 'unknown'})`,
-          iterations,
-          toolCalls,
-          exhaustedBudget: false,
-        };
+        // Empty completion — could be timeout, rate limit, or transient error.
+        // Bail after 2 consecutive empty completions to avoid a hung loop.
+        emptyCompletions++;
+        if (emptyCompletions >= 2) {
+          return {
+            answer: `ERROR: repeated empty completions (${completion.error?.message || 'unknown'})`,
+            iterations,
+            toolCalls,
+            exhaustedBudget: false,
+          };
+        }
+        // Inject a system note and retry (model may recover)
+        messages.push({ role: 'system', content: `[internal: previous completion was empty — retry]` });
+        continue;
       }
+      emptyCompletions = 0; // reset on success
 
-      const calls = msg.tool_calls || [];
+      // Guard: tool_calls must be an array (some models return null/undefined)
+      const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
       if (calls.length === 0) {
         // Final text answer
         finalAnswer = msg.content || '';
         break;
       }
 
-      // Act: run each tool call
+      // Act: run each tool call (guard against malformed call objects)
       messages.push({ role: 'assistant', content: msg.content || null, tool_calls: calls });
       for (const call of calls) {
         toolCalls++;
         let name = '';
         let args: Record<string, any> = {};
         try {
-          name = call.function?.name || '';
-          args = JSON.parse(call.function?.arguments || '{}');
+          name = call?.function?.name || '';
+          if (!name) {
+            messages.push({ role: 'tool', tool_call_id: call?.id || 'unknown', content: 'ERROR: tool call missing function name' });
+            continue;
+          }
+          args = JSON.parse(call?.function?.arguments || '{}');
         } catch {
           args = {};
         }
@@ -157,7 +172,7 @@ export class LilithAgent {
           console.log(`  → ${name}(${JSON.stringify(args).slice(0, 120)})`);
         }
         const result = await runTool(name, args, this.ctx);
-        messages.push({ role: 'tool', tool_call_id: call.id, content: result });
+        messages.push({ role: 'tool', tool_call_id: call?.id || 'unknown', content: result });
       }
     }
 

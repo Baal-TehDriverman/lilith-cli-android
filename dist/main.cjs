@@ -4226,19 +4226,26 @@ var LilithAgent = class {
     let finalAnswer = "";
     let exhaustedBudget = false;
     let iterations = 0;
+    let emptyCompletions = 0;
     for (iterations = 1; iterations <= this.cfg.maxIterations; iterations++) {
       const completion = await this.complete(messages);
       const choice = completion.choices?.[0];
       const msg = choice?.message;
       if (!msg) {
-        return {
-          answer: `ERROR: empty completion (${completion.error?.message || "unknown"})`,
-          iterations,
-          toolCalls,
-          exhaustedBudget: false
-        };
+        emptyCompletions++;
+        if (emptyCompletions >= 2) {
+          return {
+            answer: `ERROR: repeated empty completions (${completion.error?.message || "unknown"})`,
+            iterations,
+            toolCalls,
+            exhaustedBudget: false
+          };
+        }
+        messages.push({ role: "system", content: `[internal: previous completion was empty \u2014 retry]` });
+        continue;
       }
-      const calls = msg.tool_calls || [];
+      emptyCompletions = 0;
+      const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
       if (calls.length === 0) {
         finalAnswer = msg.content || "";
         break;
@@ -4249,8 +4256,12 @@ var LilithAgent = class {
         let name = "";
         let args = {};
         try {
-          name = call.function?.name || "";
-          args = JSON.parse(call.function?.arguments || "{}");
+          name = call?.function?.name || "";
+          if (!name) {
+            messages.push({ role: "tool", tool_call_id: call?.id || "unknown", content: "ERROR: tool call missing function name" });
+            continue;
+          }
+          args = JSON.parse(call?.function?.arguments || "{}");
         } catch {
           args = {};
         }
@@ -4258,7 +4269,7 @@ var LilithAgent = class {
           console.log(`  \u2192 ${name}(${JSON.stringify(args).slice(0, 120)})`);
         }
         const result = await runTool(name, args, this.ctx);
-        messages.push({ role: "tool", tool_call_id: call.id, content: result });
+        messages.push({ role: "tool", tool_call_id: call?.id || "unknown", content: result });
       }
     }
     if (iterations > this.cfg.maxIterations) {
