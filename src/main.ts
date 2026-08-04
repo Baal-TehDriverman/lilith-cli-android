@@ -150,7 +150,7 @@ program
         'Think step by step, call tools when they help, and finish with a concise final answer to the user. ' +
         'Never invent tool output — if a tool errors, report the error. Use memory_put for facts worth remembering.' +
         memCtx,
-    });
+    }, memory);
 
     console.log(chalk.gray(`Provider: ${p.providerName} · Model: ${options.model || p.model}\n`));
     const result = await agent.run(query);

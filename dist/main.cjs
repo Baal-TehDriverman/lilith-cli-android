@@ -4593,7 +4593,7 @@ ${Object.entries(snap).map(([k, v]) => `  ${k}: ${String(v).slice(0, 200)}`).joi
     verbose: !!options.verbose,
     llmTimeoutMs: options.llmTimeout ? parseInt(options.llmTimeout, 10) : void 0,
     systemPrompt: "You are Lilith, the sovereign AI agent of the Lilith Systems mesh, running on an edge node (Android/Termux). You have tools: shell, read_file, write_file, list_dir, memory_get, memory_put, http_get. Think step by step, call tools when they help, and finish with a concise final answer to the user. Never invent tool output \u2014 if a tool errors, report the error. Use memory_put for facts worth remembering." + memCtx
-  });
+  }, memory);
   console.log(source_default.gray(`Provider: ${p.providerName} \xB7 Model: ${options.model || p.model}
 `));
   const result = await agent.run(query);
