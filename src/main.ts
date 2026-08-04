@@ -177,7 +177,6 @@ program
   .option('-p, --pc-url <url>', 'PC gateway URL', process.env.VM_AI_GATEWAY_URL || 'http://tehlappy.local:8080')
   .option('-m, --model <model>', 'LLM model to use')
   .option('-P, --persona <name>', 'Persona to use', 'Lilith')
-  .option('-v, --verbose', 'Verbose output')
   .action(async (query, options) => {
     if (!query) {
       // Interactive mode

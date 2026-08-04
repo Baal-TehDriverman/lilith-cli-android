@@ -133,7 +133,7 @@ export const tools: ToolDefinition[] = [
       required: ['key'],
     },
     handler: async ({ key }, ctx) => {
-      const v = ctx.memory.get(String(key));
+      const v = await ctx.memory.get(String(key));
       return v === undefined ? `(no memory entry for "${key}")` : String(v);
     },
   },
@@ -146,7 +146,7 @@ export const tools: ToolDefinition[] = [
       required: ['key', 'value'],
     },
     handler: async ({ key, value }, ctx) => {
-      ctx.memory.put(String(key), String(value));
+      await ctx.memory.put(String(key), String(value));
       return `stored ${key}`;
     },
   },
@@ -168,6 +168,125 @@ export const tools: ToolDefinition[] = [
         return `HTTP ${res.status}\n${clamp(text, ctx.maxOutputChars)}`;
       } catch (e: any) {
         return `ERROR: ${e?.message || e}`;
+      }
+    },
+  },
+  {
+    name: 'evolve',
+    description:
+      'Self-evolve a skill using the GEPA engine (hermes-agent-self-evolution). Full pipeline when dspy is installed (mutation -> fitness -> constraints -> PR). Falls back to local mutation + structural validation on devices without dspy. Returns the evolved skill diff and score.',
+    parameters: {
+      type: 'object',
+      properties: {
+        skill: { type: 'string', description: 'Skill name, e.g. "github-code-review"' },
+        iterations: { type: 'number', description: 'Evolution iterations (default 3)' },
+        output: { type: 'string', description: 'Output path for the evolved skill (default evolution_output/<skill>/SKILL.md)' },
+      },
+      required: ['skill'],
+    },
+    handler: async ({ skill, iterations, output }, ctx) => {
+      const name = String(skill || '').trim();
+      if (!name) return 'ERROR: no skill name';
+      const n = Math.max(1, Math.min(10, Number(iterations) || 3));
+      const repo = resolve(ctx.workdir || DEFAULT_WORKDIR, 'hermes-agent-self-evolution');
+      const outPath = output ? resolve(ctx.workdir || DEFAULT_WORKDIR, String(output))
+                             : join(repo, 'evolution_output', name, 'SKILL.md');
+      // Check whether the full GEPA pipeline can run (dspy availability)
+      let mode = 'local';
+      try {
+        const probe = await execAsync('python3 -c "import dspy"', { timeout: 15_000 });
+        if (probe.stderr === '') mode = 'full';
+      } catch { mode = 'local'; }
+      if (mode === 'full') {
+        try {
+          const cmd = `python3 -m evolution.skills.evolve_skill --skill ${name} --iterations ${n} --output "${outPath}"`;
+          const { stdout, stderr } = await execAsync(cmd, {
+            timeout: 120_000, maxBuffer: 8 * 1024 * 1024,
+            cwd: repo,
+          });
+          return clamp(stdout + (stderr ? `\n[stderr]\n${stderr}` : ''), ctx.maxOutputChars);
+        } catch (e: any) {
+          return `EXIT ${e?.code ?? 'error'} (GEPA): ${clamp(e?.stderr || e?.message || '', ctx.maxOutputChars)}`;
+        }
+      }
+      // Local fallback: import pure-Python mutators + constraint validator
+      try {
+        // Write the python to a temp file — `python3 -c` mangles newlines through
+        // shell quoting (JSON.stringify turns them into literal \n)
+        const scriptPath = join(homedir(), '.lilith', 'tmp', `evolve_${Date.now()}.py`);
+        await writeFile(scriptPath, `import sys, json
+sys.path.insert(0, ${JSON.stringify(repo)})
+from pathlib import Path
+import importlib.util
+
+repo = Path(${JSON.stringify(repo)})
+
+def load_by_path(rel):
+    # Load a module by file path, bypassing package __init__ (which may import dspy)
+    p = repo / rel
+    spec = importlib.util.spec_from_file_location(p.stem, p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+mutations = load_by_path("evolution/skills/mutation_strategies.py")
+apply_random_mutation = mutations.apply_random_mutation
+
+HAVE_CONSTRAINTS = False
+validate_skill_evolution = None
+try:
+    cons = load_by_path("evolution/core/constraints_impl.py")
+    validate_skill_evolution = cons.validate_skill_evolution
+    HAVE_CONSTRAINTS = True
+except Exception:
+    HAVE_CONSTRAINTS = False
+
+skill = ${JSON.stringify(name)}
+src = None
+for cand in [repo/"skills"/f"{skill}.md", repo/"skills"/skill/"SKILL.md",
+             repo/"evolution_output"/skill/f"{skill}_evolved.md",
+             repo/"evolution_output"/skill/"SKILL.md"]:
+    if cand.exists():
+        src = cand.read_text()
+        break
+if src is None:
+    for sf in (repo/"skills").rglob("SKILL.md"):
+        if sf.parent.name == skill or f"name: {skill}" in sf.read_text(errors="replace")[:400]:
+            src = sf.read_text()
+            break
+if src is None:
+    print(json.dumps({"ok": False, "error": f"skill {skill} not found"})); sys.exit(0)
+
+mutated = apply_random_mutation(src, skill)
+score = 0.6
+report = None
+if HAVE_CONSTRAINTS and validate_skill_evolution:
+    try:
+        report = validate_skill_evolution(mutated, skill)
+        score = round(0.5 + 0.5 * (1.0 if report.valid else 0.3), 3)
+    except Exception:
+        score = 0.5
+out = repo/"evolution_output"/skill
+out.mkdir(parents=True, exist_ok=True)
+(out/"SKILL.md").write_text(mutated)
+print(json.dumps({
+  "ok": True, "mode": "local", "skill": skill,
+  "src_bytes": len(src), "evolved_bytes": len(mutated),
+  "score": score,
+  "output": str(out/"SKILL.md"),
+  "constraints": None if report is None else {
+      "valid": report.valid,
+      "issues": [str(x) for x in (getattr(report, "issues", None) or [])][:10],
+  },
+  "head": mutated.splitlines()[:8],
+}))
+`, 'utf-8');
+        const { stdout } = await execAsync(`python3 "${scriptPath}"`, {
+          timeout: 60_000, maxBuffer: 8 * 1024 * 1024,
+        });
+        return clamp(stdout, ctx.maxOutputChars);
+      } catch (e: any) {
+        return `EXIT ${e?.code ?? 'error'} (local evolve): ${clamp(e?.stderr || e?.message || '', ctx.maxOutputChars)}`;
       }
     },
   },

@@ -4,6 +4,7 @@
  */
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync } from 'fs';
+import { execSync } from 'child_process';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -45,7 +46,13 @@ const outFile = outDir + '/main.cjs';
 let content = readFileSync(outFile, 'utf-8');
 // Remove any existing shebang lines (esbuild may have placed it incorrectly)
 content = content.replace(/^#!.*\n/gm, '');
-// Add correct shebang as first line
-content = '#!/data/user/0/com.hermesagent.android/files/home/.nodejs-lts/bin/node\n' + content;
+// Add correct shebang as first line (detect the active node binary so the
+// bundle runs on plain Termux too, not just the Hermes app node)
+let nodePath = '/data/user/0/com.hermesagent.android/files/home/.nodejs-lts/bin/node';
+try {
+  const detected = execSync('command -v node', { encoding: 'utf-8' }).trim();
+  if (detected) nodePath = detected;
+} catch { /* keep default */ }
+content = `#!${nodePath}\n` + content;
 writeFileSync(outFile, content);
-console.log('✓ Build complete with shebang: dist/main.cjs');
+console.log(`✓ Build complete with shebang: #!${nodePath}`);

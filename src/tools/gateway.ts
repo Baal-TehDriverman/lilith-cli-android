@@ -5,6 +5,7 @@
 
 import chalk from 'chalk';
 import { AIProvider, ProviderConfig, loadProviders, getActiveProvider, formatProvider } from './providers.js';
+import { resolveSystemPrompt } from '../config/personas.js';
 
 export async function checkGatewayStatus(pcUrl?: string): Promise<void> {
   const config = loadProviders();
@@ -106,13 +107,16 @@ export async function queryGateway(
 
   const endpoint = `${provider.baseUrl}/v1/chat/completions`;
 
+  // Resolve persona -> full system prompt (registry lookup w/ fallback)
+  const systemPrompt = resolveSystemPrompt(persona);
+
   // Build request body based on API mode
   let body: any;
   if (provider.apiMode === 'anthropic') {
     body = {
       model: model || provider.models[0] || 'claude-sonnet-4-20250514',
       messages: [
-        { role: 'system', content: persona ? `You are ${persona}.` : 'You are a helpful AI assistant.' },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
       max_tokens: 2048,
@@ -123,7 +127,7 @@ export async function queryGateway(
     body = {
       model: model || provider.models[0] || 'default',
       messages: [
-        { role: 'system', content: persona ? `You are ${persona}.` : 'You are a helpful AI assistant.' },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
       max_tokens: 2048,
@@ -135,10 +139,7 @@ export async function queryGateway(
     body = {
       model: model || provider.models[0] || 'llama3.1:8b',
       messages: [
-        {
-          role: 'system',
-          content: `You are ${persona}, the Metaconscious Singularity Node AI. You have access to Sephirotic routing, Ouroboros memory fusion, Akashic context pruning, and Sanctuary VRAM hysteresis. Respond with direct, actionable insights.`
-        },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
