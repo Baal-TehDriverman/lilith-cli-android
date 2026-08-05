@@ -72,8 +72,32 @@ program
 
 program
   .command('buddy')
-  .description('Show Buddy companion status')
-  .action(async () => {
+  .description('Buddy companion — show status or interact (feed/train/evolve/reset)')
+  .argument('[action]', 'feed | train [stat] | evolve | reset')
+  .argument('[stat]', 'stat to train (wisdom|chaos|snark|mercy|judgment)')
+  .action(async (action, stat) => {
+    if (action) {
+      const { buddyFeed, buddyTrain, buddyEvolve, buddyReset } = await import('./buddy/companion.js');
+      switch (action) {
+        case 'feed':
+          console.log(await buddyFeed());
+          break;
+        case 'train':
+          console.log(await buddyTrain(stat));
+          break;
+        case 'evolve':
+          console.log(await buddyEvolve());
+          break;
+        case 'reset':
+          console.log(await buddyReset());
+          break;
+        default:
+          console.log(chalk.red(`Unknown buddy action: ${action}`));
+          console.log(chalk.gray('Usage: lilith buddy [feed|train [stat]|evolve|reset]'));
+          process.exitCode = 1;
+      }
+      return;
+    }
     await showBuddy();
   });
 

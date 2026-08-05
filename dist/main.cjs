@@ -3355,6 +3355,242 @@ var init_orchestrator = __esm({
   }
 });
 
+// src/buddy/companion.ts
+var companion_exports = {};
+__export(companion_exports, {
+  buddyEvolve: () => buddyEvolve,
+  buddyFeed: () => buddyFeed,
+  buddyReset: () => buddyReset,
+  buddyTrain: () => buddyTrain,
+  getBuddyPath: () => getBuddyPath,
+  loadBuddy: () => loadBuddy,
+  showBuddy: () => showBuddy
+});
+function getBuddyPath() {
+  return (0, import_path2.join)((0, import_os.homedir)(), ".lilith", "buddy.json");
+}
+function generateBuddy(userId) {
+  let seed = userId.split("").reduce((a, b) => a + b.charCodeAt(0), 0);
+  const mulberry32 = () => {
+    seed |= 0;
+    seed = seed + 1831565813 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  const rand = mulberry32();
+  let selectedSpecies;
+  if (rand < 0.05) {
+    selectedSpecies = "Keterion";
+  } else if (rand < 0.15) {
+    selectedSpecies = ["Chokhmite", "Binahed"][Math.floor(mulberry32() * 2)];
+  } else if (rand < 0.35) {
+    selectedSpecies = ["Chesedon", "Gevuron", "Tiferetix"][Math.floor(mulberry32() * 3)];
+  } else if (rand < 0.6) {
+    selectedSpecies = ["Netzachor", "Hodite", "Yesodex"][Math.floor(mulberry32() * 3)];
+  } else {
+    selectedSpecies = "Malkian";
+  }
+  const species = SEPHIROTIC_SPECIES[selectedSpecies];
+  return {
+    id: `buddy_${Date.now()}`,
+    species: selectedSpecies,
+    sephirah: species.sephirah,
+    level: 1,
+    stats: {
+      wisdom: Math.floor(mulberry32() * 10) + 1,
+      chaos: Math.floor(mulberry32() * 10) + 1,
+      snark: Math.floor(mulberry32() * 10) + 1,
+      mercy: Math.floor(mulberry32() * 10) + 1,
+      judgment: Math.floor(mulberry32() * 10) + 1
+    },
+    soul: species.soul,
+    lastFed: (/* @__PURE__ */ new Date(0)).toISOString(),
+    // epoch — allows immediate first feed
+    lastTrained: (/* @__PURE__ */ new Date(0)).toISOString(),
+    evolution: "Seed",
+    fedCount: 0,
+    trainCount: 0,
+    evolveCount: 0
+  };
+}
+async function loadBuddy() {
+  const buddyPath = getBuddyPath();
+  try {
+    const parsed = JSON.parse(await (0, import_promises2.readFile)(buddyPath, "utf-8"));
+    const migrated = {
+      ...parsed,
+      stats: {
+        wisdom: parsed.stats?.wisdom ?? 1,
+        chaos: parsed.stats?.chaos ?? 1,
+        snark: parsed.stats?.snark ?? 1,
+        mercy: parsed.stats?.mercy ?? 1,
+        judgment: parsed.stats?.judgment ?? 1
+      },
+      lastFed: parsed.lastFed || (/* @__PURE__ */ new Date(0)).toISOString(),
+      lastTrained: parsed.lastTrained || (/* @__PURE__ */ new Date(0)).toISOString(),
+      fedCount: parsed.fedCount ?? 0,
+      trainCount: parsed.trainCount ?? 0,
+      evolveCount: parsed.evolveCount ?? 0,
+      evolution: parsed.evolution || "Seed",
+      level: parsed.level || 1
+    };
+    await saveBuddy(migrated);
+    return migrated;
+  } catch (e) {
+    const userId = process.env.USER || "anon";
+    const buddy = generateBuddy(userId);
+    await (0, import_promises2.mkdir)((0, import_path2.join)((0, import_os.homedir)(), ".lilith"), { recursive: true });
+    await (0, import_promises2.writeFile)(buddyPath, JSON.stringify(buddy, null, 2));
+    return buddy;
+  }
+}
+async function saveBuddy(buddy) {
+  await (0, import_promises2.mkdir)((0, import_path2.join)((0, import_os.homedir)(), ".lilith"), { recursive: true });
+  await (0, import_promises2.writeFile)(getBuddyPath(), JSON.stringify(buddy, null, 2));
+}
+async function buddyFeed() {
+  const buddy = await loadBuddy();
+  const now = Date.now();
+  const lastFed = new Date(buddy.lastFed).getTime();
+  if (now - lastFed < FEED_COOLDOWN_MS) {
+    const remaining = Math.ceil((FEED_COOLDOWN_MS - (now - lastFed)) / 1e3);
+    return `\u{1F37D}\uFE0F  Buddy is full! Feed again in ${remaining}s.`;
+  }
+  buddy.lastFed = new Date(now).toISOString();
+  buddy.fedCount++;
+  const speciesInfo = SEPHIROTIC_SPECIES[buddy.species];
+  const flavor = speciesInfo.rarity === "Legendary" ? "You feed your legendary companion. Its eyes gleam with ancient knowledge." : speciesInfo.rarity === "Common" ? "You share a humble meal. It seems content." : "You offer a feast. It devours it with relish.";
+  await saveBuddy(buddy);
+  return `${flavor}
+${formatStatsLine(buddy)} (mercy +1 capped at ${STAT_MAX})`;
+}
+async function buddyTrain(stat4) {
+  const buddy = await loadBuddy();
+  const now = Date.now();
+  const lastTrained = new Date(buddy.lastTrained).getTime();
+  if (now - lastTrained < TRAIN_COOLDOWN_MS) {
+    const remaining = Math.ceil((TRAIN_COOLDOWN_MS - (now - lastTrained)) / 1e3);
+    return `\u{1F3CB}\uFE0F  Buddy is training! Try again in ${remaining}s.`;
+  }
+  let target = null;
+  if (stat4 && STAT_KEYS.includes(stat4)) {
+    target = stat4;
+  } else {
+    let weakest = "wisdom";
+    for (const k of STAT_KEYS) {
+      if (buddy.stats[k] < buddy.stats[weakest]) weakest = k;
+    }
+    target = weakest;
+  }
+  if (buddy.stats[target] >= STAT_MAX) {
+    return `\u2728 ${target} is already maxed at ${STAT_MAX}!`;
+  }
+  buddy.lastTrained = new Date(now).toISOString();
+  buddy.trainCount++;
+  buddy.stats[target]++;
+  await saveBuddy(buddy);
+  return `\u{1F3CB}\uFE0F  Training ${target}... +1 \u2192 ${buddy.stats[target]}/10
+${formatStatsLine(buddy)}`;
+}
+async function buddyEvolve() {
+  const buddy = await loadBuddy();
+  const now = Date.now();
+  if (buddy.evolution !== "Seed") {
+    return `\u{1F9EC} ${buddy.species} is already evolved (${buddy.evolution}).`;
+  }
+  if (buddy.level < 3) {
+    return `\u{1F9EC} ${buddy.species} must reach level 3 to evolve (currently level ${buddy.level}). Keep feeding and training!`;
+  }
+  const totalInteractions = buddy.fedCount + buddy.trainCount;
+  if (totalInteractions < 10) {
+    return `\u{1F9EC} ${buddy.species} needs at least 10 interactions to evolve (currently ${totalInteractions}).`;
+  }
+  buddy.evolution = "Sprout";
+  buddy.evolveCount++;
+  buddy.level++;
+  await saveBuddy(buddy);
+  return `\u{1F31F} ${buddy.species} has evolved to Sprout! Level ${buddy.level}
+${formatStatsLine(buddy)}`;
+}
+async function buddyReset() {
+  await (0, import_promises2.mkdir)((0, import_path2.join)((0, import_os.homedir)(), ".lilith"), { recursive: true });
+  try {
+    const { unlink } = await import("fs/promises");
+    await unlink(getBuddyPath());
+  } catch {
+  }
+  const buddy = await loadBuddy();
+  return `\u{1F504} Buddy reset complete!
+New companion: ${source_default.magenta(buddy.species)} (${buddy.sephirah} \xB7 ${SEPHIROTIC_SPECIES[buddy.species].rarity})
+${formatStatsLine(buddy)}`;
+}
+function formatStatsLine(buddy) {
+  const parts = STAT_KEYS.map((k) => `${k}: ${buddy.stats[k]}/${STAT_MAX}`);
+  return source_default.gray(parts.join("  "));
+}
+async function showBuddy() {
+  console.log(source_default.cyan("\n\u{1F406} Buddy Companion System\n"));
+  const buddy = await loadBuddy();
+  const speciesInfo = SEPHIROTIC_SPECIES[buddy.species];
+  const isNew = buddy.fedCount === 0 && buddy.trainCount === 0;
+  if (isNew) {
+    console.log(source_default.yellow("\u2728 New buddy generated!\n"));
+  } else {
+    console.log(source_default.green("\u2713 Existing buddy found\n"));
+  }
+  console.log(source_default.magenta(`Species: ${buddy.species}`));
+  console.log(source_default.gray(`Sephirah: ${buddy.sephirah}`));
+  console.log(source_default.gray(`Rarity: ${speciesInfo.rarity}`));
+  console.log(source_default.gray(`Level: ${buddy.level}`));
+  console.log(source_default.gray(`Evolution: ${buddy.evolution}`));
+  console.log(source_default.gray(`Interactions: ${buddy.fedCount} fed \xB7 ${buddy.trainCount} trained \xB7 ${buddy.evolveCount} evolved`));
+  console.log();
+  console.log(source_default.cyan("Stats:"));
+  for (const k of STAT_KEYS) {
+    const v = buddy.stats[k];
+    console.log(source_default.gray(`  ${k.padEnd(9)} ${"\u2588".repeat(v)}${"\u2591".repeat(10 - v)} ${v}/10`));
+  }
+  console.log();
+  console.log(source_default.yellow("Soul:"));
+  console.log(source_default.gray(`  ${buddy.soul}`));
+  console.log();
+  console.log(source_default.gray(`Last fed: ${buddy.lastFed === (/* @__PURE__ */ new Date(0)).toISOString() ? "never" : buddy.lastFed}`));
+  console.log();
+  console.log(source_default.cyan("Interactions:"));
+  console.log(source_default.gray("  lilith buddy feed     - Feed your buddy (+mercy, 30s cooldown)"));
+  console.log(source_default.gray("  lilith buddy train    - Train a stat (+1, 60s cooldown)"));
+  console.log(source_default.gray("  lilith buddy evolve   - Evolve at level 3+ (10+ interactions)"));
+  console.log(source_default.gray("  lilith buddy reset    - Generate new buddy"));
+  console.log();
+}
+var import_promises2, import_path2, import_os, SEPHIROTIC_SPECIES, STAT_KEYS, STAT_MAX, FEED_COOLDOWN_MS, TRAIN_COOLDOWN_MS, EVOLVE_COOLDOWN_MS;
+var init_companion = __esm({
+  "src/buddy/companion.ts"() {
+    init_source();
+    import_promises2 = require("fs/promises");
+    import_path2 = require("path");
+    import_os = require("os");
+    SEPHIROTIC_SPECIES = {
+      Keterion: { sephirah: "Keter", rarity: "Legendary", soul: "The Crown - Executive vision and divine will" },
+      Chokhmite: { sephirah: "Chokhmah", rarity: "Epic", soul: "Wisdom - Creative intuition and flash insights" },
+      Binahed: { sephirah: "Binah", rarity: "Epic", soul: "Understanding - Deep analysis and comprehension" },
+      Chesedon: { sephirah: "Chesed", rarity: "Rare", soul: "Mercy - Benevolent expansion and giving" },
+      Gevuron: { sephirah: "Gevurah", rarity: "Rare", soul: "Judgment - Critical discipline and boundaries" },
+      Tiferetix: { sephirah: "Tiferet", rarity: "Rare", soul: "Beauty - Harmonic balance and compassion" },
+      Netzachor: { sephirah: "Netzach", rarity: "Uncommon", soul: "Victory - Persistence and endurance" },
+      Hodite: { sephirah: "Hod", rarity: "Uncommon", soul: "Splendor - Clear communication and logic" },
+      Yesodex: { sephirah: "Yesod", rarity: "Uncommon", soul: "Foundation - Memory and habitual patterns" },
+      Malkian: { sephirah: "Malkuth", rarity: "Common", soul: "Kingdom - Physical manifestation and grounding" }
+    };
+    STAT_KEYS = ["wisdom", "chaos", "snark", "mercy", "judgment"];
+    STAT_MAX = 10;
+    FEED_COOLDOWN_MS = 3e4;
+    TRAIN_COOLDOWN_MS = 6e4;
+    EVOLVE_COOLDOWN_MS = 5 * 6e4;
+  }
+});
+
 // src/kairos/router.ts
 async function routeMatch(match, event, source, config) {
   const { sephirah, action } = match;
@@ -3466,17 +3702,17 @@ __export(watcher_exports, {
 async function createWatcher(config) {
   return new KairosWatcher(config || {});
 }
-var import_promises5, import_path6, import_os4, DEFAULT_JOURNAL, DEFAULT_HERMES, SEP2, KairosWatcher;
+var import_promises6, import_path7, import_os5, DEFAULT_JOURNAL, DEFAULT_HERMES, SEP2, KairosWatcher;
 var init_watcher = __esm({
   "src/kairos/watcher.ts"() {
-    import_promises5 = require("fs/promises");
-    import_path6 = require("path");
-    import_os4 = require("os");
+    import_promises6 = require("fs/promises");
+    import_path7 = require("path");
+    import_os5 = require("os");
     init_orchestrator();
     init_router();
     init_source();
-    DEFAULT_JOURNAL = (0, import_path6.join)((0, import_os4.homedir)(), ".lilith", "ouroboros", "memory.jsonl");
-    DEFAULT_HERMES = (0, import_path6.join)((0, import_os4.homedir)(), ".hermes", "memories", "MEMORY.md");
+    DEFAULT_JOURNAL = (0, import_path7.join)((0, import_os5.homedir)(), ".lilith", "ouroboros", "memory.jsonl");
+    DEFAULT_HERMES = (0, import_path7.join)((0, import_os5.homedir)(), ".hermes", "memories", "MEMORY.md");
     SEP2 = "\n\xA7\n";
     KairosWatcher = class {
       config;
@@ -3520,13 +3756,13 @@ var init_watcher = __esm({
       }
       async initPositions() {
         try {
-          const jStat = await (0, import_promises5.stat)(this.config.journalPath);
+          const jStat = await (0, import_promises6.stat)(this.config.journalPath);
           this.journalPos = jStat.size;
         } catch {
           this.journalPos = 0;
         }
         try {
-          const hStat = await (0, import_promises5.stat)(this.config.hermesMemoryPath);
+          const hStat = await (0, import_promises6.stat)(this.config.hermesMemoryPath);
           this.hermesPos = hStat.size;
         } catch {
           this.hermesPos = 0;
@@ -3545,9 +3781,9 @@ var init_watcher = __esm({
       }
       async checkJournal() {
         try {
-          const st = await (0, import_promises5.stat)(this.config.journalPath);
+          const st = await (0, import_promises6.stat)(this.config.journalPath);
           if (st.size <= this.journalPos) return;
-          const raw = await (0, import_promises5.readFile)(this.config.journalPath, "utf-8");
+          const raw = await (0, import_promises6.readFile)(this.config.journalPath, "utf-8");
           const newContent = raw.slice(this.journalPos);
           this.journalPos = st.size;
           for (const line of newContent.split("\n")) {
@@ -3569,9 +3805,9 @@ var init_watcher = __esm({
       }
       async checkHermesMemory() {
         try {
-          const st = await (0, import_promises5.stat)(this.config.hermesMemoryPath);
+          const st = await (0, import_promises6.stat)(this.config.hermesMemoryPath);
           if (st.size <= this.hermesPos) return;
-          const raw = await (0, import_promises5.readFile)(this.config.hermesMemoryPath, "utf-8");
+          const raw = await (0, import_promises6.readFile)(this.config.hermesMemoryPath, "utf-8");
           const newContent = raw.slice(this.hermesPos);
           this.hermesPos = st.size;
           const chunks = newContent.split(SEP2);
@@ -3636,25 +3872,16 @@ async function runDreamCycle(config = {}) {
 Last consolidated: ${(/* @__PURE__ */ new Date()).toISOString()}
 `;
   }
-  console.log(source_default.cyan("2. Gather - Finding new signals..."));
-  const logFiles = [
-    (0, import_path.join)(homeDir, ".kairos-dream.log"),
-    (0, import_path.join)(homeDir, "abyssal-assets-ouroboros.log"),
-    (0, import_path.join)(memoryDir, "dreams.log")
-  ];
+  console.log(source_default.cyan("2. Gather - Parsing memory.jsonl journal..."));
+  const journalPath = (0, import_path.join)(memoryDir, "memory.jsonl");
+  const journalEntries = await readJournal(journalPath);
+  console.log(source_default.gray(`   Journal has ${journalEntries.length} entries`));
+  const consolidatedDate = (/* @__PURE__ */ new Date()).toISOString();
   const newSignals = [];
-  for (const logFile of logFiles) {
-    try {
-      const content = await (0, import_promises.readFile)(logFile, "utf-8");
-      const lines2 = content.split("\n").slice(-50);
-      const newEntries = lines2.filter(
-        (l) => l.includes("2026-07-18") && !memoryContent.includes(l)
-      );
-      if (newEntries.length > 0) {
-        console.log(source_default.gray(`   Found ${newEntries.length} new entries in ${logFile}`));
-        newSignals.push(...newEntries);
-      }
-    } catch (e) {
+  for (const entry of journalEntries) {
+    const line = `[${entry.ts || entry.timestamp}] ${entry.key}: ${entry.value}`;
+    if (!memoryContent.includes(entry.key + ":")) {
+      newSignals.push(line);
     }
   }
   if (newSignals.length === 0 && !config.force) {
@@ -3664,7 +3891,6 @@ Last consolidated: ${(/* @__PURE__ */ new Date()).toISOString()}
   console.log(source_default.gray(`   Total new signals: ${newSignals.length}
 `));
   console.log(source_default.cyan("3. Consolidate - Updating memory..."));
-  const consolidatedDate = (/* @__PURE__ */ new Date()).toISOString();
   const newMemory = `${memoryContent}
 ## Consolidated: ${consolidatedDate}
 
@@ -3674,13 +3900,14 @@ Last consolidated: ${(/* @__PURE__ */ new Date()).toISOString()}
   await (0, import_promises.writeFile)(memoryPath, updatedMemory);
   console.log(source_default.gray(`   Wrote ${updatedMemory.length} bytes to MEMORY.md
 `));
-  console.log(source_default.cyan("4. Prune - Applying Akashic compression..."));
-  const lines = updatedMemory.split("\n");
-  const pruned = lines.slice(-1e3).join("\n");
+  console.log(source_default.cyan("4. Prune - Applying token-budget compression..."));
+  const tokens = estimateTokens(updatedMemory);
+  const pruned = pruneToBudget(updatedMemory, TOKEN_BUDGET);
   if (pruned.length < updatedMemory.length) {
     const saved = updatedMemory.length - pruned.length;
-    console.log(source_default.gray(`   Pruned ${saved} bytes`));
-    await (0, import_promises.writeFile)(memoryPath + ".pruned", pruned);
+    const savedTokens = tokens - estimateTokens(pruned);
+    console.log(source_default.gray(`   Pruned ${saved} bytes (${savedTokens} tokens) to fit budget`));
+    await (0, import_promises.writeFile)(memoryPath, pruned);
   } else {
     console.log(source_default.gray("   No pruning needed (under budget)\n"));
   }
@@ -3688,108 +3915,71 @@ Last consolidated: ${(/* @__PURE__ */ new Date()).toISOString()}
   await (0, import_promises.writeFile)(archivePath, updatedMemory);
   console.log(source_default.gray(`   Archived to ${archivePath}
 `));
+  await cleanupArchives(memoryDir, 7);
   console.log(source_default.green("\u2713 Dream cycle complete\n"));
   console.log(source_default.gray("Sanctuary hysteresis: 90s cooldown active"));
 }
-
-// src/buddy/companion.ts
-init_source();
-var SEPHIROTIC_SPECIES = {
-  Keterion: { sephirah: "Keter", rarity: "Legendary", soul: "The Crown - Executive vision and divine will" },
-  Chokhmite: { sephirah: "Chokhmah", rarity: "Epic", soul: "Wisdom - Creative intuition and flash insights" },
-  Binahed: { sephirah: "Binah", rarity: "Epic", soul: "Understanding - Deep analysis and comprehension" },
-  Chesedon: { sephirah: "Chesed", rarity: "Rare", soul: "Mercy - Benevolent expansion and giving" },
-  Gevuron: { sephirah: "Gevurah", rarity: "Rare", soul: "Judgment - Critical discipline and boundaries" },
-  Tiferetix: { sephirah: "Tiferet", rarity: "Rare", soul: "Beauty - Harmonic balance and compassion" },
-  Netzachor: { sephirah: "Netzach", rarity: "Uncommon", soul: "Victory - Persistence and endurance" },
-  Hodite: { sephirah: "Hod", rarity: "Uncommon", soul: "Splendor - Clear communication and logic" },
-  Yesodex: { sephirah: "Yesod", rarity: "Uncommon", soul: "Foundation - Memory and\u4E60\u60EF\u6027 patterns" },
-  Malkian: { sephirah: "Malkuth", rarity: "Common", soul: "Kingdom - Physical manifestation and grounding" }
-};
-function generateBuddy(userId) {
-  let seed = userId.split("").reduce((a, b) => a + b.charCodeAt(0), 0);
-  const mulberry32 = () => {
-    seed |= 0;
-    seed = seed + 1831565813 | 0;
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-  const speciesKeys = Object.keys(SEPHIROTIC_SPECIES);
-  const rand = mulberry32();
-  let selectedSpecies;
-  if (rand < 0.05) {
-    selectedSpecies = "Keterion";
-  } else if (rand < 0.15) {
-    selectedSpecies = ["Chokhmite", "Binahed"][Math.floor(mulberry32() * 2)];
-  } else if (rand < 0.35) {
-    selectedSpecies = ["Chesedon", "Gevuron", "Tiferetix"][Math.floor(mulberry32() * 3)];
-  } else if (rand < 0.6) {
-    selectedSpecies = ["Netzachor", "Hodite", "Yesodex"][Math.floor(mulberry32() * 3)];
-  } else {
-    selectedSpecies = "Malkian";
-  }
-  const species = SEPHIROTIC_SPECIES[selectedSpecies];
-  return {
-    id: `buddy_${Date.now()}`,
-    species: selectedSpecies,
-    sephirah: species.sephirah,
-    level: 1,
-    stats: {
-      wisdom: Math.floor(mulberry32() * 10) + 1,
-      chaos: Math.floor(mulberry32() * 10) + 1,
-      snark: Math.floor(mulberry32() * 10) + 1,
-      mercy: Math.floor(mulberry32() * 10) + 1,
-      judgment: Math.floor(mulberry32() * 10) + 1
-    },
-    soul: species.soul,
-    lastFed: (/* @__PURE__ */ new Date()).toISOString(),
-    evolution: "Seed"
-  };
-}
-async function showBuddy() {
-  console.log(source_default.cyan("\n\u{1F406} Buddy Companion System\n"));
-  const homeDir = process.env.HOME || ".";
-  const buddyPath = `${homeDir}/.lilith/buddy.json`;
-  let buddy;
+async function readJournal(journalPath) {
+  const entries = [];
   try {
-    const { readFile: readFile6 } = await import("fs/promises");
-    buddy = JSON.parse(await readFile6(buddyPath, "utf-8"));
-    console.log(source_default.green("\u2713 Existing buddy found\n"));
+    const raw = await (0, import_promises.readFile)(journalPath, "utf-8");
+    for (const line of raw.split("\n")) {
+      const l = line.trim();
+      if (!l) continue;
+      try {
+        entries.push(JSON.parse(l));
+      } catch {
+      }
+    }
   } catch (e) {
-    const userId = process.env.USER || "anon";
-    buddy = generateBuddy(userId);
-    console.log(source_default.yellow("\u2728 New buddy generated!\n"));
-    const { writeFile: writeFile5, mkdir: mkdir4 } = await import("fs/promises");
-    await mkdir4(`${homeDir}/.lilith`, { recursive: true });
-    await writeFile5(buddyPath, JSON.stringify(buddy, null, 2));
   }
-  const speciesInfo = SEPHIROTIC_SPECIES[buddy.species];
-  console.log(source_default.magenta(`Species: ${buddy.species}`));
-  console.log(source_default.gray(`Sephirah: ${buddy.sephirah}`));
-  console.log(source_default.gray(`Rarity: ${speciesInfo.rarity}`));
-  console.log(source_default.gray(`Level: ${buddy.level}`));
-  console.log(source_default.gray(`Evolution: ${buddy.evolution}`));
-  console.log();
-  console.log(source_default.cyan("Stats:"));
-  console.log(source_default.gray(`  Wisdom:  ${"\u2588".repeat(buddy.stats.wisdom)}${"\u2591".repeat(10 - buddy.stats.wisdom)} ${buddy.stats.wisdom}/10`));
-  console.log(source_default.gray(`  Chaos:   ${"\u2588".repeat(buddy.stats.chaos)}${"\u2591".repeat(10 - buddy.stats.chaos)} ${buddy.stats.chaos}/10`));
-  console.log(source_default.gray(`  Snark:   ${"\u2588".repeat(buddy.stats.snark)}${"\u2591".repeat(10 - buddy.stats.snark)} ${buddy.stats.snark}/10`));
-  console.log(source_default.gray(`  Mercy:   ${"\u2588".repeat(buddy.stats.mercy)}${"\u2591".repeat(10 - buddy.stats.mercy)} ${buddy.stats.mercy}/10`));
-  console.log(source_default.gray(`  Judgment:${"\u2588".repeat(buddy.stats.judgment)}${"\u2591".repeat(10 - buddy.stats.judgment)} ${buddy.stats.judgment}/10`));
-  console.log();
-  console.log(source_default.yellow("Soul:"));
-  console.log(source_default.gray(`  ${buddy.soul}`));
-  console.log();
-  console.log(source_default.gray(`Last interaction: ${buddy.lastFed}`));
-  console.log();
-  console.log(source_default.cyan("Interactions:"));
-  console.log(source_default.gray("  lilith buddy feed     - Feed your buddy"));
-  console.log(source_default.gray("  lilith buddy train    - Train a stat"));
-  console.log(source_default.gray("  lilith buddy evolve   - Attempt evolution"));
-  console.log(source_default.gray("  lilith buddy reset    - Generate new buddy"));
-  console.log();
+  return entries;
 }
+function pruneToBudget(text, budget) {
+  if (estimateTokens(text) <= budget) return text;
+  const lines = text.split("\n");
+  const header = [];
+  const body = [];
+  let inBody = false;
+  for (const line of lines) {
+    if (line.startsWith("#") && !inBody) {
+      header.push(line);
+    } else {
+      inBody = true;
+      body.push(line);
+    }
+  }
+  const maxBodyTokens = Math.max(100, budget - estimateTokens(header.join("\n")));
+  let prunedBody = body;
+  while (prunedBody.length > 0 && estimateTokens(prunedBody.join("\n")) > maxBodyTokens) {
+    const dropCount = Math.max(1, Math.floor(prunedBody.length / 10));
+    prunedBody = prunedBody.slice(dropCount);
+  }
+  const result = [...header, ...prunedBody].join("\n");
+  return result;
+}
+async function cleanupArchives(memoryDir, keep) {
+  try {
+    const files = await (0, import_promises.readdir)(memoryDir);
+    const archives = files.filter((f) => /^memory-\d{4}-\d{2}-\d{2}\.md$/.test(f)).sort();
+    const toRemove = archives.slice(0, Math.max(0, archives.length - keep));
+    for (const f of toRemove) {
+      try {
+        await import("fs/promises").then((m) => m.unlink((0, import_path.join)(memoryDir, f)));
+        console.log(source_default.gray(`   Archived cleanup: removed ${f}`));
+      } catch {
+      }
+    }
+  } catch {
+  }
+}
+function estimateTokens(text) {
+  return Math.ceil(text.length / 4);
+}
+var TOKEN_BUDGET = 15e3;
+
+// src/main.ts
+init_companion();
 
 // src/tools/gateway.ts
 init_source();
@@ -3797,9 +3987,9 @@ init_source();
 // src/tools/providers.ts
 init_source();
 var import_fs = require("fs");
-var import_path2 = require("path");
-var CONFIG_PATH = (0, import_path2.join)(process.cwd(), "src", "config", "providers.json");
-var USER_CONFIG_PATH = (0, import_path2.join)(process.cwd(), ".lilith", "providers.json");
+var import_path3 = require("path");
+var CONFIG_PATH = (0, import_path3.join)(process.cwd(), "src", "config", "providers.json");
+var USER_CONFIG_PATH = (0, import_path3.join)(process.cwd(), ".lilith", "providers.json");
 var DEFAULT_PROVIDERS = [
   {
     name: "pc-gateway",
@@ -3919,7 +4109,7 @@ function upsertProvider(config, provider) {
   return config;
 }
 function saveProviders(config) {
-  const dir = (0, import_path2.join)(process.cwd(), ".lilith");
+  const dir = (0, import_path3.join)(process.cwd(), ".lilith");
   try {
     (0, import_fs.writeFileSync)(USER_CONFIG_PATH, JSON.stringify(config, null, 2));
   } catch {
@@ -4116,11 +4306,11 @@ async function queryGateway(prompt, providerName, model, persona = "Lilith") {
 // src/agent/tools.ts
 var import_child_process = require("child_process");
 var import_util = require("util");
-var import_promises2 = require("fs/promises");
-var import_path3 = require("path");
-var import_os = require("os");
+var import_promises3 = require("fs/promises");
+var import_path4 = require("path");
+var import_os2 = require("os");
 var execAsync = (0, import_util.promisify)(import_child_process.exec);
-var DEFAULT_WORKDIR = (0, import_os.homedir)();
+var DEFAULT_WORKDIR = (0, import_os2.homedir)();
 var clamp = (s, max) => s.length > max ? s.slice(0, max) + `
 ...[truncated ${s.length - max} chars]` : s;
 var tools = [
@@ -4159,8 +4349,8 @@ ${stderr}` : ""), ctx.maxOutputChars);
     },
     handler: async ({ path }, ctx) => {
       try {
-        const full = (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path));
-        const content = await (0, import_promises2.readFile)(full, "utf-8");
+        const full = (0, import_path4.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path));
+        const content = await (0, import_promises3.readFile)(full, "utf-8");
         const lines = content.split("\n");
         const shown = lines.slice(0, 200);
         return clamp(shown.map((l, i) => `${i + 1}|${l}`).join("\n"), ctx.maxOutputChars);
@@ -4182,8 +4372,8 @@ ${stderr}` : ""), ctx.maxOutputChars);
     },
     handler: async ({ path, content }, ctx) => {
       try {
-        const full = (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path));
-        await (0, import_promises2.writeFile)(full, String(content ?? ""), "utf-8");
+        const full = (0, import_path4.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path));
+        await (0, import_promises3.writeFile)(full, String(content ?? ""), "utf-8");
         return `WROTE ${full} (${String(content ?? "").length} bytes)`;
       } catch (e) {
         return `ERROR: ${e?.message || e}`;
@@ -4199,12 +4389,12 @@ ${stderr}` : ""), ctx.maxOutputChars);
     },
     handler: async ({ path }, ctx) => {
       try {
-        const full = (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path || "."));
-        const entries = await (0, import_promises2.readdir)(full);
+        const full = (0, import_path4.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(path || "."));
+        const entries = await (0, import_promises3.readdir)(full);
         const lines = [];
         for (const name of entries.sort()) {
           try {
-            const st = await (0, import_promises2.stat)((0, import_path3.join)(full, name));
+            const st = await (0, import_promises3.stat)((0, import_path4.join)(full, name));
             lines.push(`${st.isDirectory() ? "d" : "f"}  ${name}`);
           } catch {
             lines.push(`?  ${name}`);
@@ -4280,8 +4470,8 @@ ${clamp(text, ctx.maxOutputChars)}`;
       const name = String(skill || "").trim();
       if (!name) return "ERROR: no skill name";
       const n = Math.max(1, Math.min(10, Number(iterations) || 3));
-      const repo = (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, "hermes-agent-self-evolution");
-      const outPath = output ? (0, import_path3.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(output)) : (0, import_path3.join)(repo, "evolution_output", name, "SKILL.md");
+      const repo = (0, import_path4.resolve)(ctx.workdir || DEFAULT_WORKDIR, "hermes-agent-self-evolution");
+      const outPath = output ? (0, import_path4.resolve)(ctx.workdir || DEFAULT_WORKDIR, String(output)) : (0, import_path4.join)(repo, "evolution_output", name, "SKILL.md");
       let mode = "local";
       try {
         const probe = await execAsync('python3 -c "import dspy"', { timeout: 15e3 });
@@ -4305,8 +4495,8 @@ ${stderr}` : ""), ctx.maxOutputChars);
         }
       }
       try {
-        const scriptPath = (0, import_path3.join)((0, import_os.homedir)(), ".lilith", "tmp", `evolve_${Date.now()}.py`);
-        await (0, import_promises2.writeFile)(scriptPath, `import sys, json
+        const scriptPath = (0, import_path4.join)((0, import_os2.homedir)(), ".lilith", "tmp", `evolve_${Date.now()}.py`);
+        await (0, import_promises3.writeFile)(scriptPath, `import sys, json
 sys.path.insert(0, ${JSON.stringify(repo)})
 from pathlib import Path
 import importlib.util
@@ -4405,21 +4595,21 @@ async function runTool(name, args, ctx) {
 }
 
 // src/agent/memory.ts
-var import_promises3 = require("fs/promises");
-var import_path4 = require("path");
-var import_os2 = require("os");
+var import_promises4 = require("fs/promises");
+var import_path5 = require("path");
+var import_os3 = require("os");
 var MemoryStore = class {
   file;
   data = /* @__PURE__ */ new Map();
   loaded = false;
   constructor(dir) {
-    const base = dir || (0, import_path4.join)((0, import_os2.homedir)(), ".lilith", "ouroboros");
-    this.file = (0, import_path4.join)(base, "memory.jsonl");
+    const base = dir || (0, import_path5.join)((0, import_os3.homedir)(), ".lilith", "ouroboros");
+    this.file = (0, import_path5.join)(base, "memory.jsonl");
   }
   async ensureLoaded() {
     if (this.loaded) return;
     try {
-      const raw = await (0, import_promises3.readFile)(this.file, "utf-8");
+      const raw = await (0, import_promises4.readFile)(this.file, "utf-8");
       for (const line of raw.split("\n")) {
         if (!line.trim()) continue;
         try {
@@ -4441,10 +4631,10 @@ var MemoryStore = class {
   async put(key, value) {
     await this.ensureLoaded();
     this.data.set(key, value);
-    await (0, import_promises3.mkdir)((0, import_path4.join)(this.file, ".."), { recursive: true }).catch(() => {
+    await (0, import_promises4.mkdir)((0, import_path5.join)(this.file, ".."), { recursive: true }).catch(() => {
     });
     const entry = JSON.stringify({ key, value, ts: (/* @__PURE__ */ new Date()).toISOString() });
-    await (0, import_promises3.appendFile)(this.file, entry + "\n", "utf-8");
+    await (0, import_promises4.appendFile)(this.file, entry + "\n", "utf-8");
   }
   /** Return all current key/value pairs (for the agent's context or introspection). */
   async snapshot() {
@@ -4613,12 +4803,12 @@ var LilithAgent = class {
 var import_http2 = require("http");
 
 // src/agent/memory_hermes.ts
-var import_promises4 = require("fs/promises");
-var import_path5 = require("path");
-var import_os3 = require("os");
-var HERMES_MEMORIES = (0, import_path5.join)((0, import_os3.homedir)(), ".hermes", "memories");
-var MEMORY_FILE = (0, import_path5.join)(HERMES_MEMORIES, "MEMORY.md");
-var USER_FILE = (0, import_path5.join)(HERMES_MEMORIES, "USER.md");
+var import_promises5 = require("fs/promises");
+var import_path6 = require("path");
+var import_os4 = require("os");
+var HERMES_MEMORIES = (0, import_path6.join)((0, import_os4.homedir)(), ".hermes", "memories");
+var MEMORY_FILE = (0, import_path6.join)(HERMES_MEMORIES, "MEMORY.md");
+var USER_FILE = (0, import_path6.join)(HERMES_MEMORIES, "USER.md");
 var SEP = "\n\xA7\n";
 var BUDGET = 2200;
 var KEY_PREFIX = "LILITH-KEY ";
@@ -4635,7 +4825,7 @@ var HermesMemoryStore = class {
     this.entries = [];
     for (const file of [MEMORY_FILE, USER_FILE]) {
       try {
-        const raw = await (0, import_promises4.readFile)(file, "utf-8");
+        const raw = await (0, import_promises5.readFile)(file, "utf-8");
         for (const chunk of raw.split(SEP)) {
           const c = chunk.trim();
           if (!c) continue;
@@ -4707,11 +4897,11 @@ var HermesMemoryStore = class {
     const text = pending.join(SEP) + "\n";
     try {
       const tmp = MEMORY_FILE + ".lilith-tmp";
-      await (0, import_promises4.writeFile)(tmp, text, "utf-8");
-      await (0, import_promises4.writeFile)(MEMORY_FILE, text, "utf-8");
-      await (0, import_promises4.stat)(MEMORY_FILE);
+      await (0, import_promises5.writeFile)(tmp, text, "utf-8");
+      await (0, import_promises5.writeFile)(MEMORY_FILE, text, "utf-8");
+      await (0, import_promises5.stat)(MEMORY_FILE);
       try {
-        await (0, import_promises4.writeFile)(tmp, "", "utf-8");
+        await (0, import_promises5.writeFile)(tmp, "", "utf-8");
       } catch {
       }
       this.entries = [...pending.map((c) => ({ ...this.parseChunk(c), source: MEMORY_FILE })), ...userEntries];
@@ -4844,7 +5034,29 @@ program2.command("dream").description("Run dream consolidation cycle").option("-
   console.log(source_default.yellow("\u{1F319} Running dream cycle..."));
   await runDreamCycle(options);
 });
-program2.command("buddy").description("Show Buddy companion status").action(async () => {
+program2.command("buddy").description("Buddy companion \u2014 show status or interact (feed/train/evolve/reset)").argument("[action]", "feed | train [stat] | evolve | reset").argument("[stat]", "stat to train (wisdom|chaos|snark|mercy|judgment)").action(async (action, stat4) => {
+  if (action) {
+    const { buddyFeed: buddyFeed2, buddyTrain: buddyTrain2, buddyEvolve: buddyEvolve2, buddyReset: buddyReset2 } = await Promise.resolve().then(() => (init_companion(), companion_exports));
+    switch (action) {
+      case "feed":
+        console.log(await buddyFeed2());
+        break;
+      case "train":
+        console.log(await buddyTrain2(stat4));
+        break;
+      case "evolve":
+        console.log(await buddyEvolve2());
+        break;
+      case "reset":
+        console.log(await buddyReset2());
+        break;
+      default:
+        console.log(source_default.red(`Unknown buddy action: ${action}`));
+        console.log(source_default.gray("Usage: lilith buddy [feed|train [stat]|evolve|reset]"));
+        process.exitCode = 1;
+    }
+    return;
+  }
   await showBuddy();
 });
 program2.command("status").description("Check gateway connection").option("-p, --pc-url <url>", "PC gateway URL", process.env.VM_AI_GATEWAY_URL || "http://tehlappy.local:8080").action(async (options) => {
