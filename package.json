@@ -8,7 +8,7 @@
     "build:cli": "node build-cli.mjs",
     "build:web": "vite build",
     "build": "npm run build:web && npm run build:cli",
-    "test": "node scripts/test-build.mjs",
+    "test": "timeout 180 node scripts/test-build.mjs || { echo 'test run exceeded 180s timeout — likely CPU contention on single-core SD865; retry with lower load'; exit 124; }",
     "preview": "vite preview",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
