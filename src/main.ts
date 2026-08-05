@@ -40,12 +40,25 @@ program
 
 program
   .command('kairos')
-  .description('Start KAIROS proactive assistant')
-  .option('-p, --pc-url <url>', 'PC gateway URL', process.env.VM_AI_GATEWAY_URL || 'http://tehlappy.local:8080')
+  .description('Start KAIROS proactive assistant (watches memory for patterns)')
+  .option('-p, --pc-url <url>', 'PC gateway URL (legacy, ignored)', process.env.VM_AI_GATEWAY_URL || '')
   .option('-v, --verbose', 'Verbose output')
+  .option('--allow-actions', 'Enable shell actions (DANGEROUS — default: dry-run only)')
+  .option('--poll <ms>', 'Poll interval in ms (default: 2000)', '2000')
   .action(async (options) => {
-    console.log(chalk.blue('🜏 Starting KAIROS...'));
-    await startKairos(options);
+    const { KairosWatcher } = await import('./kairos/watcher.js');
+    const watcher = new KairosWatcher({
+      verbose: !!options.verbose,
+      allowActions: !!options.allowActions,
+      pollIntervalMs: parseInt(options.poll, 10) || 2000,
+    });
+    
+    process.on('SIGINT', async () => {
+      await watcher.stop();
+      process.exit(0);
+    });
+    
+    await watcher.start();
   });
 
 program

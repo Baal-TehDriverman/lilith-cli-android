@@ -5,8 +5,15 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -2763,95 +2770,7 @@ var require_commander = __commonJS({
   }
 });
 
-// node_modules/commander/esm.mjs
-var import_index = __toESM(require_commander(), 1);
-var {
-  program,
-  createCommand,
-  createArgument,
-  createOption,
-  CommanderError,
-  InvalidArgumentError,
-  InvalidOptionArgumentError,
-  // deprecated old name
-  Command,
-  Argument,
-  Option,
-  Help
-} = import_index.default;
-
-// src/main.ts
-var import_readline = require("readline");
-
 // node_modules/chalk/source/vendor/ansi-styles/index.js
-var ANSI_BACKGROUND_OFFSET = 10;
-var wrapAnsi16 = (offset = 0) => (code) => `\x1B[${code + offset}m`;
-var wrapAnsi256 = (offset = 0) => (code) => `\x1B[${38 + offset};5;${code}m`;
-var wrapAnsi16m = (offset = 0) => (red, green, blue) => `\x1B[${38 + offset};2;${red};${green};${blue}m`;
-var styles = {
-  modifier: {
-    reset: [0, 0],
-    // 21 isn't widely supported and 22 does the same thing
-    bold: [1, 22],
-    dim: [2, 22],
-    italic: [3, 23],
-    underline: [4, 24],
-    overline: [53, 55],
-    inverse: [7, 27],
-    hidden: [8, 28],
-    strikethrough: [9, 29]
-  },
-  color: {
-    black: [30, 39],
-    red: [31, 39],
-    green: [32, 39],
-    yellow: [33, 39],
-    blue: [34, 39],
-    magenta: [35, 39],
-    cyan: [36, 39],
-    white: [37, 39],
-    // Bright color
-    blackBright: [90, 39],
-    gray: [90, 39],
-    // Alias of `blackBright`
-    grey: [90, 39],
-    // Alias of `blackBright`
-    redBright: [91, 39],
-    greenBright: [92, 39],
-    yellowBright: [93, 39],
-    blueBright: [94, 39],
-    magentaBright: [95, 39],
-    cyanBright: [96, 39],
-    whiteBright: [97, 39]
-  },
-  bgColor: {
-    bgBlack: [40, 49],
-    bgRed: [41, 49],
-    bgGreen: [42, 49],
-    bgYellow: [43, 49],
-    bgBlue: [44, 49],
-    bgMagenta: [45, 49],
-    bgCyan: [46, 49],
-    bgWhite: [47, 49],
-    // Bright color
-    bgBlackBright: [100, 49],
-    bgGray: [100, 49],
-    // Alias of `bgBlackBright`
-    bgGrey: [100, 49],
-    // Alias of `bgBlackBright`
-    bgRedBright: [101, 49],
-    bgGreenBright: [102, 49],
-    bgYellowBright: [103, 49],
-    bgBlueBright: [104, 49],
-    bgMagentaBright: [105, 49],
-    bgCyanBright: [106, 49],
-    bgWhiteBright: [107, 49]
-  }
-};
-var modifierNames = Object.keys(styles.modifier);
-var foregroundColorNames = Object.keys(styles.color);
-var backgroundColorNames = Object.keys(styles.bgColor);
-var colorNames = [...foregroundColorNames, ...backgroundColorNames];
 function assembleStyles() {
   const codes = /* @__PURE__ */ new Map();
   for (const [groupName, group] of Object.entries(styles)) {
@@ -2966,25 +2885,88 @@ function assembleStyles() {
   });
   return styles;
 }
-var ansiStyles = assembleStyles();
-var ansi_styles_default = ansiStyles;
+var ANSI_BACKGROUND_OFFSET, wrapAnsi16, wrapAnsi256, wrapAnsi16m, styles, modifierNames, foregroundColorNames, backgroundColorNames, colorNames, ansiStyles, ansi_styles_default;
+var init_ansi_styles = __esm({
+  "node_modules/chalk/source/vendor/ansi-styles/index.js"() {
+    ANSI_BACKGROUND_OFFSET = 10;
+    wrapAnsi16 = (offset = 0) => (code) => `\x1B[${code + offset}m`;
+    wrapAnsi256 = (offset = 0) => (code) => `\x1B[${38 + offset};5;${code}m`;
+    wrapAnsi16m = (offset = 0) => (red, green, blue) => `\x1B[${38 + offset};2;${red};${green};${blue}m`;
+    styles = {
+      modifier: {
+        reset: [0, 0],
+        // 21 isn't widely supported and 22 does the same thing
+        bold: [1, 22],
+        dim: [2, 22],
+        italic: [3, 23],
+        underline: [4, 24],
+        overline: [53, 55],
+        inverse: [7, 27],
+        hidden: [8, 28],
+        strikethrough: [9, 29]
+      },
+      color: {
+        black: [30, 39],
+        red: [31, 39],
+        green: [32, 39],
+        yellow: [33, 39],
+        blue: [34, 39],
+        magenta: [35, 39],
+        cyan: [36, 39],
+        white: [37, 39],
+        // Bright color
+        blackBright: [90, 39],
+        gray: [90, 39],
+        // Alias of `blackBright`
+        grey: [90, 39],
+        // Alias of `blackBright`
+        redBright: [91, 39],
+        greenBright: [92, 39],
+        yellowBright: [93, 39],
+        blueBright: [94, 39],
+        magentaBright: [95, 39],
+        cyanBright: [96, 39],
+        whiteBright: [97, 39]
+      },
+      bgColor: {
+        bgBlack: [40, 49],
+        bgRed: [41, 49],
+        bgGreen: [42, 49],
+        bgYellow: [43, 49],
+        bgBlue: [44, 49],
+        bgMagenta: [45, 49],
+        bgCyan: [46, 49],
+        bgWhite: [47, 49],
+        // Bright color
+        bgBlackBright: [100, 49],
+        bgGray: [100, 49],
+        // Alias of `bgBlackBright`
+        bgGrey: [100, 49],
+        // Alias of `bgBlackBright`
+        bgRedBright: [101, 49],
+        bgGreenBright: [102, 49],
+        bgYellowBright: [103, 49],
+        bgBlueBright: [104, 49],
+        bgMagentaBright: [105, 49],
+        bgCyanBright: [106, 49],
+        bgWhiteBright: [107, 49]
+      }
+    };
+    modifierNames = Object.keys(styles.modifier);
+    foregroundColorNames = Object.keys(styles.color);
+    backgroundColorNames = Object.keys(styles.bgColor);
+    colorNames = [...foregroundColorNames, ...backgroundColorNames];
+    ansiStyles = assembleStyles();
+    ansi_styles_default = ansiStyles;
+  }
+});
 
 // node_modules/chalk/source/vendor/supports-color/index.js
-var import_node_process = __toESM(require("node:process"), 1);
-var import_node_os = __toESM(require("node:os"), 1);
-var import_node_tty = __toESM(require("node:tty"), 1);
 function hasFlag(flag, argv = globalThis.Deno ? globalThis.Deno.args : import_node_process.default.argv) {
   const prefix = flag.startsWith("-") ? "" : flag.length === 1 ? "-" : "--";
   const position = argv.indexOf(prefix + flag);
   const terminatorPosition = argv.indexOf("--");
   return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
-}
-var { env } = import_node_process.default;
-var flagForceColor;
-if (hasFlag("no-color") || hasFlag("no-colors") || hasFlag("color=false") || hasFlag("color=never")) {
-  flagForceColor = 0;
-} else if (hasFlag("color") || hasFlag("colors") || hasFlag("color=true") || hasFlag("color=always")) {
-  flagForceColor = 1;
 }
 function envForceColor() {
   if ("FORCE_COLOR" in env) {
@@ -3095,11 +3077,25 @@ function createSupportsColor(stream, options = {}) {
   });
   return translateLevel(level);
 }
-var supportsColor = {
-  stdout: createSupportsColor({ isTTY: import_node_tty.default.isatty(1) }),
-  stderr: createSupportsColor({ isTTY: import_node_tty.default.isatty(2) })
-};
-var supports_color_default = supportsColor;
+var import_node_process, import_node_os, import_node_tty, env, flagForceColor, supportsColor, supports_color_default;
+var init_supports_color = __esm({
+  "node_modules/chalk/source/vendor/supports-color/index.js"() {
+    import_node_process = __toESM(require("node:process"), 1);
+    import_node_os = __toESM(require("node:os"), 1);
+    import_node_tty = __toESM(require("node:tty"), 1);
+    ({ env } = import_node_process.default);
+    if (hasFlag("no-color") || hasFlag("no-colors") || hasFlag("color=false") || hasFlag("color=never")) {
+      flagForceColor = 0;
+    } else if (hasFlag("color") || hasFlag("colors") || hasFlag("color=true") || hasFlag("color=always")) {
+      flagForceColor = 1;
+    }
+    supportsColor = {
+      stdout: createSupportsColor({ isTTY: import_node_tty.default.isatty(1) }),
+      stderr: createSupportsColor({ isTTY: import_node_tty.default.isatty(2) })
+    };
+    supports_color_default = supportsColor;
+  }
+});
 
 // node_modules/chalk/source/utilities.js
 function stringReplaceAll(string, substring, replacer) {
@@ -3130,153 +3126,165 @@ function stringEncaseCRLFWithFirstIndex(string, prefix, postfix, index) {
   returnValue += string.slice(endIndex);
   return returnValue;
 }
+var init_utilities = __esm({
+  "node_modules/chalk/source/utilities.js"() {
+  }
+});
 
 // node_modules/chalk/source/index.js
-var { stdout: stdoutColor, stderr: stderrColor } = supports_color_default;
-var GENERATOR = Symbol("GENERATOR");
-var STYLER = Symbol("STYLER");
-var IS_EMPTY = Symbol("IS_EMPTY");
-var levelMapping = [
-  "ansi",
-  "ansi",
-  "ansi256",
-  "ansi16m"
-];
-var styles2 = /* @__PURE__ */ Object.create(null);
-var applyOptions = (object, options = {}) => {
-  if (options.level && !(Number.isInteger(options.level) && options.level >= 0 && options.level <= 3)) {
-    throw new Error("The `level` option should be an integer from 0 to 3");
-  }
-  const colorLevel = stdoutColor ? stdoutColor.level : 0;
-  object.level = options.level === void 0 ? colorLevel : options.level;
-};
-var chalkFactory = (options) => {
-  const chalk2 = (...strings) => strings.join(" ");
-  applyOptions(chalk2, options);
-  Object.setPrototypeOf(chalk2, createChalk.prototype);
-  return chalk2;
-};
 function createChalk(options) {
   return chalkFactory(options);
 }
-Object.setPrototypeOf(createChalk.prototype, Function.prototype);
-for (const [styleName, style] of Object.entries(ansi_styles_default)) {
-  styles2[styleName] = {
-    get() {
-      const builder = createBuilder(this, createStyler(style.open, style.close, this[STYLER]), this[IS_EMPTY]);
-      Object.defineProperty(this, styleName, { value: builder });
+var stdoutColor, stderrColor, GENERATOR, STYLER, IS_EMPTY, levelMapping, styles2, applyOptions, chalkFactory, getModelAnsi, usedModels, proto, createStyler, createBuilder, applyStyle, chalk, chalkStderr, source_default;
+var init_source = __esm({
+  "node_modules/chalk/source/index.js"() {
+    init_ansi_styles();
+    init_supports_color();
+    init_utilities();
+    ({ stdout: stdoutColor, stderr: stderrColor } = supports_color_default);
+    GENERATOR = Symbol("GENERATOR");
+    STYLER = Symbol("STYLER");
+    IS_EMPTY = Symbol("IS_EMPTY");
+    levelMapping = [
+      "ansi",
+      "ansi",
+      "ansi256",
+      "ansi16m"
+    ];
+    styles2 = /* @__PURE__ */ Object.create(null);
+    applyOptions = (object, options = {}) => {
+      if (options.level && !(Number.isInteger(options.level) && options.level >= 0 && options.level <= 3)) {
+        throw new Error("The `level` option should be an integer from 0 to 3");
+      }
+      const colorLevel = stdoutColor ? stdoutColor.level : 0;
+      object.level = options.level === void 0 ? colorLevel : options.level;
+    };
+    chalkFactory = (options) => {
+      const chalk2 = (...strings) => strings.join(" ");
+      applyOptions(chalk2, options);
+      Object.setPrototypeOf(chalk2, createChalk.prototype);
+      return chalk2;
+    };
+    Object.setPrototypeOf(createChalk.prototype, Function.prototype);
+    for (const [styleName, style] of Object.entries(ansi_styles_default)) {
+      styles2[styleName] = {
+        get() {
+          const builder = createBuilder(this, createStyler(style.open, style.close, this[STYLER]), this[IS_EMPTY]);
+          Object.defineProperty(this, styleName, { value: builder });
+          return builder;
+        }
+      };
+    }
+    styles2.visible = {
+      get() {
+        const builder = createBuilder(this, this[STYLER], true);
+        Object.defineProperty(this, "visible", { value: builder });
+        return builder;
+      }
+    };
+    getModelAnsi = (model, level, type, ...arguments_) => {
+      if (model === "rgb") {
+        if (level === "ansi16m") {
+          return ansi_styles_default[type].ansi16m(...arguments_);
+        }
+        if (level === "ansi256") {
+          return ansi_styles_default[type].ansi256(ansi_styles_default.rgbToAnsi256(...arguments_));
+        }
+        return ansi_styles_default[type].ansi(ansi_styles_default.rgbToAnsi(...arguments_));
+      }
+      if (model === "hex") {
+        return getModelAnsi("rgb", level, type, ...ansi_styles_default.hexToRgb(...arguments_));
+      }
+      return ansi_styles_default[type][model](...arguments_);
+    };
+    usedModels = ["rgb", "hex", "ansi256"];
+    for (const model of usedModels) {
+      styles2[model] = {
+        get() {
+          const { level } = this;
+          return function(...arguments_) {
+            const styler = createStyler(getModelAnsi(model, levelMapping[level], "color", ...arguments_), ansi_styles_default.color.close, this[STYLER]);
+            return createBuilder(this, styler, this[IS_EMPTY]);
+          };
+        }
+      };
+      const bgModel = "bg" + model[0].toUpperCase() + model.slice(1);
+      styles2[bgModel] = {
+        get() {
+          const { level } = this;
+          return function(...arguments_) {
+            const styler = createStyler(getModelAnsi(model, levelMapping[level], "bgColor", ...arguments_), ansi_styles_default.bgColor.close, this[STYLER]);
+            return createBuilder(this, styler, this[IS_EMPTY]);
+          };
+        }
+      };
+    }
+    proto = Object.defineProperties(() => {
+    }, {
+      ...styles2,
+      level: {
+        enumerable: true,
+        get() {
+          return this[GENERATOR].level;
+        },
+        set(level) {
+          this[GENERATOR].level = level;
+        }
+      }
+    });
+    createStyler = (open, close, parent) => {
+      let openAll;
+      let closeAll;
+      if (parent === void 0) {
+        openAll = open;
+        closeAll = close;
+      } else {
+        openAll = parent.openAll + open;
+        closeAll = close + parent.closeAll;
+      }
+      return {
+        open,
+        close,
+        openAll,
+        closeAll,
+        parent
+      };
+    };
+    createBuilder = (self, _styler, _isEmpty) => {
+      const builder = (...arguments_) => applyStyle(builder, arguments_.length === 1 ? "" + arguments_[0] : arguments_.join(" "));
+      Object.setPrototypeOf(builder, proto);
+      builder[GENERATOR] = self;
+      builder[STYLER] = _styler;
+      builder[IS_EMPTY] = _isEmpty;
       return builder;
-    }
-  };
-}
-styles2.visible = {
-  get() {
-    const builder = createBuilder(this, this[STYLER], true);
-    Object.defineProperty(this, "visible", { value: builder });
-    return builder;
-  }
-};
-var getModelAnsi = (model, level, type, ...arguments_) => {
-  if (model === "rgb") {
-    if (level === "ansi16m") {
-      return ansi_styles_default[type].ansi16m(...arguments_);
-    }
-    if (level === "ansi256") {
-      return ansi_styles_default[type].ansi256(ansi_styles_default.rgbToAnsi256(...arguments_));
-    }
-    return ansi_styles_default[type].ansi(ansi_styles_default.rgbToAnsi(...arguments_));
-  }
-  if (model === "hex") {
-    return getModelAnsi("rgb", level, type, ...ansi_styles_default.hexToRgb(...arguments_));
-  }
-  return ansi_styles_default[type][model](...arguments_);
-};
-var usedModels = ["rgb", "hex", "ansi256"];
-for (const model of usedModels) {
-  styles2[model] = {
-    get() {
-      const { level } = this;
-      return function(...arguments_) {
-        const styler = createStyler(getModelAnsi(model, levelMapping[level], "color", ...arguments_), ansi_styles_default.color.close, this[STYLER]);
-        return createBuilder(this, styler, this[IS_EMPTY]);
-      };
-    }
-  };
-  const bgModel = "bg" + model[0].toUpperCase() + model.slice(1);
-  styles2[bgModel] = {
-    get() {
-      const { level } = this;
-      return function(...arguments_) {
-        const styler = createStyler(getModelAnsi(model, levelMapping[level], "bgColor", ...arguments_), ansi_styles_default.bgColor.close, this[STYLER]);
-        return createBuilder(this, styler, this[IS_EMPTY]);
-      };
-    }
-  };
-}
-var proto = Object.defineProperties(() => {
-}, {
-  ...styles2,
-  level: {
-    enumerable: true,
-    get() {
-      return this[GENERATOR].level;
-    },
-    set(level) {
-      this[GENERATOR].level = level;
-    }
+    };
+    applyStyle = (self, string) => {
+      if (self.level <= 0 || !string) {
+        return self[IS_EMPTY] ? "" : string;
+      }
+      let styler = self[STYLER];
+      if (styler === void 0) {
+        return string;
+      }
+      const { openAll, closeAll } = styler;
+      if (string.includes("\x1B")) {
+        while (styler !== void 0) {
+          string = stringReplaceAll(string, styler.close, styler.open);
+          styler = styler.parent;
+        }
+      }
+      const lfIndex = string.indexOf("\n");
+      if (lfIndex !== -1) {
+        string = stringEncaseCRLFWithFirstIndex(string, closeAll, openAll, lfIndex);
+      }
+      return openAll + string + closeAll;
+    };
+    Object.defineProperties(createChalk.prototype, styles2);
+    chalk = createChalk();
+    chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
+    source_default = chalk;
   }
 });
-var createStyler = (open, close, parent) => {
-  let openAll;
-  let closeAll;
-  if (parent === void 0) {
-    openAll = open;
-    closeAll = close;
-  } else {
-    openAll = parent.openAll + open;
-    closeAll = close + parent.closeAll;
-  }
-  return {
-    open,
-    close,
-    openAll,
-    closeAll,
-    parent
-  };
-};
-var createBuilder = (self, _styler, _isEmpty) => {
-  const builder = (...arguments_) => applyStyle(builder, arguments_.length === 1 ? "" + arguments_[0] : arguments_.join(" "));
-  Object.setPrototypeOf(builder, proto);
-  builder[GENERATOR] = self;
-  builder[STYLER] = _styler;
-  builder[IS_EMPTY] = _isEmpty;
-  return builder;
-};
-var applyStyle = (self, string) => {
-  if (self.level <= 0 || !string) {
-    return self[IS_EMPTY] ? "" : string;
-  }
-  let styler = self[STYLER];
-  if (styler === void 0) {
-    return string;
-  }
-  const { openAll, closeAll } = styler;
-  if (string.includes("\x1B")) {
-    while (styler !== void 0) {
-      string = stringReplaceAll(string, styler.close, styler.open);
-      styler = styler.parent;
-    }
-  }
-  const lfIndex = string.indexOf("\n");
-  if (lfIndex !== -1) {
-    string = stringEncaseCRLFWithFirstIndex(string, closeAll, openAll, lfIndex);
-  }
-  return openAll + string + closeAll;
-};
-Object.defineProperties(createChalk.prototype, styles2);
-var chalk = createChalk();
-var chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
-var source_default = chalk;
 
 // src/kairos/orchestrator.ts
 async function startKairos(config) {
@@ -3323,8 +3331,291 @@ async function startKairos(config) {
     process.exit(0);
   });
 }
+function detectPattern(input) {
+  const patterns = [
+    { regex: /error|fail|exception/i, sephirah: "Gevurah", action: "diagnose" },
+    { regex: /slow|lag|performance/i, sephirah: "Tiferet", action: "optimize" },
+    { regex: /memory|ram|vram/i, sephirah: "Yesod", action: "consolidate" },
+    { regex: /trade|market|price/i, sephirah: "Hod", action: "analyze" },
+    { regex: /build|compile|deploy/i, sephirah: "Malkuth", action: "execute" },
+    { regex: /create|design|architecture/i, sephirah: "Chokhmah", action: "ideate" },
+    { regex: /analyze|understand|parse/i, sephirah: "Binah", action: "comprehend" },
+    { regex: /decide|choose|select/i, sephirah: "Keter", action: "execute_decision" }
+  ];
+  for (const p of patterns) {
+    if (p.regex.test(input)) {
+      return { sephirah: p.sephirah, action: p.action };
+    }
+  }
+  return { sephirah: "Tiferet", action: "balance" };
+}
+var init_orchestrator = __esm({
+  "src/kairos/orchestrator.ts"() {
+    init_source();
+  }
+});
+
+// src/kairos/router.ts
+async function routeMatch(match, event, source, config) {
+  const { sephirah, action } = match;
+  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+  const logEntry = `[KAIROS] ${timestamp} | ${sephirah}/${action} | ${source} | ${event.key || event.raw?.slice(0, 80) || "unknown"}`;
+  console.log(logEntry);
+  if (config.memory) {
+    const memKey = `kairos:${sephirah.toLowerCase()}:${action}:${Date.now()}`;
+    const memValue = JSON.stringify({ sephirah, action, source, event, timestamp });
+    await config.memory.put(memKey, memValue);
+  }
+  if (!config.allowActions) {
+    if (config.verbose) {
+      console.log(source_default.gray(`  [dry-run] Would execute: ${action} for ${sephirah}`));
+    }
+    return;
+  }
+  try {
+    await dispatchAction(sephirah, action, event, config);
+    if (config.verbose) {
+      console.log(source_default.green(`  [executed] ${action} for ${sephirah}`));
+    }
+  } catch (e) {
+    console.log(source_default.red(`  [error] ${action} for ${sephirah}: ${e?.message || e}`));
+  }
+}
+async function dispatchAction(sephirah, action, event, config) {
+  const { exec: exec2 } = await import("child_process");
+  const { promisify: promisify2 } = await import("util");
+  const execAsync2 = promisify2(exec2);
+  const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+  switch (sephirah) {
+    case "Gevurah":
+      if (action === "diagnose") {
+        await execAsync2("dmesg -T | tail -20", {
+          timeout: 1e4,
+          cwd: config.workdir
+        });
+      }
+      break;
+    case "Tiferet":
+      if (action === "optimize") {
+        await execAsync2("sync && echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true", {
+          timeout: 5e3,
+          cwd: config.workdir
+        });
+      }
+      break;
+    case "Yesod":
+      if (action === "consolidate") {
+        if (config.memory) {
+          await config.memory.put("kairos:consolidate:triggered", timestamp);
+        }
+      }
+      break;
+    case "Hod":
+      if (action === "analyze") {
+        if (config.memory) {
+          await config.memory.put("kairos:analyze:queued", JSON.stringify(event));
+        }
+      }
+      break;
+    case "Malkuth":
+      if (action === "execute") {
+        await execAsync2('echo "Malkuth execute triggered"', {
+          timeout: 3e4,
+          cwd: config.workdir
+        });
+      }
+      break;
+    case "Chokhmah":
+      if (action === "ideate") {
+        if (config.memory) {
+          await config.memory.put("kairos:ideate:queued", JSON.stringify(event));
+        }
+      }
+      break;
+    case "Binah":
+      if (action === "comprehend") {
+        if (config.memory) {
+          await config.memory.put("kairos:comprehend:queued", JSON.stringify(event));
+        }
+      }
+      break;
+    case "Keter":
+      if (action === "execute_decision") {
+        if (config.memory) {
+          await config.memory.put("kairos:decision:queued", JSON.stringify(event));
+        }
+      }
+      break;
+    default:
+      if (action === "balance") {
+      }
+  }
+}
+var init_router = __esm({
+  "src/kairos/router.ts"() {
+    init_source();
+  }
+});
+
+// src/kairos/watcher.ts
+var watcher_exports = {};
+__export(watcher_exports, {
+  KairosWatcher: () => KairosWatcher,
+  createWatcher: () => createWatcher
+});
+async function createWatcher(config) {
+  return new KairosWatcher(config || {});
+}
+var import_promises5, import_path6, import_os4, DEFAULT_JOURNAL, DEFAULT_HERMES, SEP2, KairosWatcher;
+var init_watcher = __esm({
+  "src/kairos/watcher.ts"() {
+    import_promises5 = require("fs/promises");
+    import_path6 = require("path");
+    import_os4 = require("os");
+    init_orchestrator();
+    init_router();
+    init_source();
+    DEFAULT_JOURNAL = (0, import_path6.join)((0, import_os4.homedir)(), ".lilith", "ouroboros", "memory.jsonl");
+    DEFAULT_HERMES = (0, import_path6.join)((0, import_os4.homedir)(), ".hermes", "memories", "MEMORY.md");
+    SEP2 = "\n\xA7\n";
+    KairosWatcher = class {
+      config;
+      journalPos = 0;
+      hermesPos = 0;
+      running = false;
+      intervalId = null;
+      constructor(config) {
+        this.config = {
+          journalPath: config.journalPath || DEFAULT_JOURNAL,
+          hermesMemoryPath: config.hermesMemoryPath || DEFAULT_HERMES,
+          pollIntervalMs: config.pollIntervalMs || 2e3,
+          verbose: config.verbose || false,
+          allowActions: config.allowActions || false
+        };
+      }
+      async start() {
+        if (this.running) return;
+        this.running = true;
+        await this.initPositions();
+        if (this.config.verbose) {
+          console.log(source_default.blue("\u{1F680} KAIROS Watcher started"));
+          console.log(source_default.gray(`Journal: ${this.config.journalPath}`));
+          console.log(source_default.gray(`Hermes:  ${this.config.hermesMemoryPath}`));
+          console.log(source_default.gray(`Poll:    ${this.config.pollIntervalMs}ms`));
+          console.log(source_default.gray(`Actions: ${this.config.allowActions ? "ENABLED" : "DISABLED (FAIL CLOSED)"}`));
+          console.log(source_default.yellow("Watching for patterns... (Ctrl+C to stop)\n"));
+        }
+        this.intervalId = setInterval(() => this.tick(), this.config.pollIntervalMs);
+        await this.tick();
+      }
+      async stop() {
+        if (this.intervalId) {
+          clearInterval(this.intervalId);
+          this.intervalId = null;
+        }
+        this.running = false;
+        if (this.config.verbose) {
+          console.log("\n" + source_default.yellow("KAIROS Watcher stopped"));
+        }
+      }
+      async initPositions() {
+        try {
+          const jStat = await (0, import_promises5.stat)(this.config.journalPath);
+          this.journalPos = jStat.size;
+        } catch {
+          this.journalPos = 0;
+        }
+        try {
+          const hStat = await (0, import_promises5.stat)(this.config.hermesMemoryPath);
+          this.hermesPos = hStat.size;
+        } catch {
+          this.hermesPos = 0;
+        }
+      }
+      async tick() {
+        if (!this.running) return;
+        try {
+          await this.checkJournal();
+          await this.checkHermesMemory();
+        } catch (e) {
+          if (this.config.verbose) {
+            console.log(source_default.red(`Watcher tick error: ${e?.message || e}`));
+          }
+        }
+      }
+      async checkJournal() {
+        try {
+          const st = await (0, import_promises5.stat)(this.config.journalPath);
+          if (st.size <= this.journalPos) return;
+          const raw = await (0, import_promises5.readFile)(this.config.journalPath, "utf-8");
+          const newContent = raw.slice(this.journalPos);
+          this.journalPos = st.size;
+          for (const line of newContent.split("\n")) {
+            if (!line.trim()) continue;
+            try {
+              const entry = JSON.parse(line);
+              if (entry && typeof entry.key === "string") {
+                const text = `${entry.key}: ${entry.value}`;
+                const match = detectPattern(text);
+                if (match) {
+                  await routeMatch(match, entry, "journal", this.config);
+                }
+              }
+            } catch {
+            }
+          }
+        } catch {
+        }
+      }
+      async checkHermesMemory() {
+        try {
+          const st = await (0, import_promises5.stat)(this.config.hermesMemoryPath);
+          if (st.size <= this.hermesPos) return;
+          const raw = await (0, import_promises5.readFile)(this.config.hermesMemoryPath, "utf-8");
+          const newContent = raw.slice(this.hermesPos);
+          this.hermesPos = st.size;
+          const chunks = newContent.split(SEP2);
+          for (const chunk of chunks) {
+            const c = chunk.trim();
+            if (!c) continue;
+            if (c.startsWith("LILITH-KEY ")) {
+              const match = detectPattern(c);
+              if (match) {
+                await routeMatch(match, { raw: c }, "hermes", this.config);
+              }
+            }
+          }
+        } catch {
+        }
+      }
+    };
+  }
+});
+
+// node_modules/commander/esm.mjs
+var import_index = __toESM(require_commander(), 1);
+var {
+  program,
+  createCommand,
+  createArgument,
+  createOption,
+  CommanderError,
+  InvalidArgumentError,
+  InvalidOptionArgumentError,
+  // deprecated old name
+  Command,
+  Argument,
+  Option,
+  Help
+} = import_index.default;
+
+// src/main.ts
+var import_readline = require("readline");
+init_source();
+init_orchestrator();
 
 // src/dream/autoDream.ts
+init_source();
 var import_promises = require("fs/promises");
 var import_path = require("path");
 async function runDreamCycle(config = {}) {
@@ -3402,6 +3693,7 @@ Last consolidated: ${(/* @__PURE__ */ new Date()).toISOString()}
 }
 
 // src/buddy/companion.ts
+init_source();
 var SEPHIROTIC_SPECIES = {
   Keterion: { sephirah: "Keter", rarity: "Legendary", soul: "The Crown - Executive vision and divine will" },
   Chokhmite: { sephirah: "Chokhmah", rarity: "Epic", soul: "Wisdom - Creative intuition and flash insights" },
@@ -3461,8 +3753,8 @@ async function showBuddy() {
   const buddyPath = `${homeDir}/.lilith/buddy.json`;
   let buddy;
   try {
-    const { readFile: readFile5 } = await import("fs/promises");
-    buddy = JSON.parse(await readFile5(buddyPath, "utf-8"));
+    const { readFile: readFile6 } = await import("fs/promises");
+    buddy = JSON.parse(await readFile6(buddyPath, "utf-8"));
     console.log(source_default.green("\u2713 Existing buddy found\n"));
   } catch (e) {
     const userId = process.env.USER || "anon";
@@ -3499,7 +3791,11 @@ async function showBuddy() {
   console.log();
 }
 
+// src/tools/gateway.ts
+init_source();
+
 // src/tools/providers.ts
+init_source();
 var import_fs = require("fs");
 var import_path2 = require("path");
 var CONFIG_PATH = (0, import_path2.join)(process.cwd(), "src", "config", "providers.json");
@@ -4531,9 +4827,18 @@ function startAgentServer(opts) {
 // src/main.ts
 var program2 = new Command();
 program2.name("lilith").description("\u{1F70F} Lilith CLI - Metaconscious Singularity Node").version("1.0.0");
-program2.command("kairos").description("Start KAIROS proactive assistant").option("-p, --pc-url <url>", "PC gateway URL", process.env.VM_AI_GATEWAY_URL || "http://tehlappy.local:8080").option("-v, --verbose", "Verbose output").action(async (options) => {
-  console.log(source_default.blue("\u{1F70F} Starting KAIROS..."));
-  await startKairos(options);
+program2.command("kairos").description("Start KAIROS proactive assistant (watches memory for patterns)").option("-p, --pc-url <url>", "PC gateway URL (legacy, ignored)", process.env.VM_AI_GATEWAY_URL || "").option("-v, --verbose", "Verbose output").option("--allow-actions", "Enable shell actions (DANGEROUS \u2014 default: dry-run only)").option("--poll <ms>", "Poll interval in ms (default: 2000)", "2000").action(async (options) => {
+  const { KairosWatcher: KairosWatcher2 } = await Promise.resolve().then(() => (init_watcher(), watcher_exports));
+  const watcher = new KairosWatcher2({
+    verbose: !!options.verbose,
+    allowActions: !!options.allowActions,
+    pollIntervalMs: parseInt(options.poll, 10) || 2e3
+  });
+  process.on("SIGINT", async () => {
+    await watcher.stop();
+    process.exit(0);
+  });
+  await watcher.start();
 });
 program2.command("dream").description("Run dream consolidation cycle").option("-f, --force", "Force consolidation").action(async (options) => {
   console.log(source_default.yellow("\u{1F319} Running dream cycle..."));
